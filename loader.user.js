@@ -27,19 +27,19 @@
     // ═══════════════════════════════════════════════════════════════════
     const CONFIG = {
         version: '8.0.0',
-        baseUrl: 'https://raw.githubusercontent.com/your-repo/elite-xss-framework/main/',
+        baseUrl: 'https://raw.githubusercontent.com/Nevrkin/My-XSS/main/',
         cacheExpiry: 3600000, // 1 hour
         devMode: false,
         hotReload: true,
         modules: {
             core: ['engine', 'detection', 'injection', 'validator', 'orchestrator'],
-            modules: ['endpoint-discovery', 'payload-manager', 'bypass-engine', 
+            modules: ['endpoint-discovery', 'payload-manager', 'bypass-engine',
                      'mutation-fuzzer', 'context-analyzer', 'polyglot-generator'],
             ui: ['dashboard', 'settings-panel', 'results-viewer', 'live-monitor', 'styles'],
             utils: ['logger', 'storage', 'sync', 'encoder', 'reporter'],
-            payloads: ['base-payloads', 'advanced-payloads', 'waf-bypass', 
+            payloads: ['base-payloads', 'advanced-payloads', 'waf-bypass',
                       'prototype-pollution', 'dom-clobbering', 'mutation-xss'],
-            techniques: ['encoding-schemes', 'obfuscation', 'timing-attacks', 
+            techniques: ['encoding-schemes', 'obfuscation', 'timing-attacks',
                         'blind-xss', 'csp-bypass'],
             integrations: ['burp-export', 'webhook-notify', 'api-connector'],
             config: ['defaults', 'endpoints', 'profiles']
@@ -81,7 +81,7 @@
         // ───────────────────────────────────────────────────────────────
         async loadModule(category, moduleName) {
             const moduleKey = `${category}/${moduleName}`;
-            
+
             // Check if already loaded
             if (this.loadedModules.has(moduleKey)) {
                 return this.loadedModules.get(moduleKey);
@@ -89,7 +89,7 @@
 
             try {
                 let moduleCode;
-                
+
                 if (CONFIG.devMode) {
                     // Load from local storage in dev mode
                     moduleCode = GM_getValue(`module_${moduleKey}`, null);
@@ -111,7 +111,7 @@
                 // Create isolated scope and execute
                 const module = this.executeModule(moduleCode, moduleName);
                 this.loadedModules.set(moduleKey, module);
-                
+
                 this.emit('moduleLoaded', { category, moduleName, module });
                 return module;
 
@@ -128,7 +128,7 @@
         fetchModule(category, moduleName) {
             return new Promise((resolve, reject) => {
                 const url = `${CONFIG.baseUrl}${category}/${moduleName}.js`;
-                
+
                 GM_xmlhttpRequest({
                     method: 'GET',
                     url: url,
@@ -164,13 +164,13 @@
 
             try {
                 const { code, timestamp, version } = JSON.parse(cached);
-                
+
                 // Check expiry and version
                 if (Date.now() - timestamp > CONFIG.cacheExpiry || version !== CONFIG.version) {
                     GM_deleteValue(`cache_${moduleKey}`);
                     return null;
                 }
-                
+
                 return code;
             } catch {
                 return null;
@@ -218,30 +218,30 @@
             try {
                 // 1️⃣ Load Core Modules (Sequential - Critical)
                 await this.loadModuleCategory('core');
-                
+
                 // 2️⃣ Load Utils (Parallel - Support)
                 await this.loadModuleCategory('utils');
-                
+
                 // 3️⃣ Load Config (Parallel - Settings)
                 await this.loadModuleCategory('config');
-                
+
                 // 4️⃣ Load UI (Parallel - Interface)
                 await this.loadModuleCategory('ui');
-                
+
                 // 5️⃣ Initialize Event System
                 this.initializeEventSystem();
-                
+
                 // 6️⃣ Setup Keyboard Shortcuts
                 this.setupShortcuts();
-                
+
                 // 7️⃣ Lazy Load Other Modules
                 this.setupLazyLoading();
 
                 this.isInitialized = true;
                 this.emit('frameworkReady', { version: CONFIG.version });
-                
+
                 console.log('[Elite XSS] ✅ Framework initialized successfully');
-                
+
                 // Show welcome notification
                 this.showWelcome();
 
@@ -285,13 +285,13 @@
                     e.preventDefault();
                     this.toggleDashboard();
                 }
-                
+
                 // Ctrl+Shift+T - Quick Test
                 if (e.ctrlKey && e.shiftKey && e.key === 'T') {
                     e.preventDefault();
                     this.quickTest();
                 }
-                
+
                 // Ctrl+Shift+S - Toggle Safe Mode
                 if (e.ctrlKey && e.shiftKey && e.key === 'S') {
                     e.preventDefault();
@@ -305,7 +305,7 @@
         // ───────────────────────────────────────────────────────────────
         setupLazyLoading() {
             const lazyCategories = ['modules', 'payloads', 'techniques', 'integrations'];
-            
+
             lazyCategories.forEach(category => {
                 Object.defineProperty(this, category, {
                     get: () => {
@@ -353,7 +353,7 @@
         // ───────────────────────────────────────────────────────────────
         showWelcome() {
             const isFirstRun = !GM_getValue('initialized', false);
-            
+
             if (isFirstRun) {
                 GM_setValue('initialized', true);
                 GM_notification({
@@ -388,17 +388,17 @@
                 box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
                 transition: transform 0.3s ease;
             `;
-            
+
             indicator.addEventListener('mouseenter', () => {
                 indicator.style.transform = 'scale(1.1)';
             });
-            
+
             indicator.addEventListener('mouseleave', () => {
                 indicator.style.transform = 'scale(1)';
             });
-            
+
             indicator.addEventListener('click', () => this.toggleDashboard());
-            
+
             document.body.appendChild(indicator);
         }
 
@@ -408,7 +408,7 @@
         initializeEventSystem() {
             // Cross-tab communication
             const bc = new BroadcastChannel('elite-xss-sync');
-            
+
             bc.onmessage = (event) => {
                 this.emit('sync', event.data);
             };
@@ -430,10 +430,10 @@
         async uninstall() {
             const keys = GM_listValues();
             keys.forEach(key => GM_deleteValue(key));
-            
+
             const indicator = document.getElementById('elite-xss-indicator');
             if (indicator) indicator.remove();
-            
+
             console.log('[Elite XSS] Framework uninstalled');
         }
     }
@@ -442,10 +442,10 @@
     // 🚀 Bootstrap
     // ═══════════════════════════════════════════════════════════════════
     const framework = new EliteXSSFramework();
-    
+
     // Make globally accessible
     unsafeWindow.EliteXSS = framework;
-    
+
     // Auto-initialize on DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => framework.initialize());

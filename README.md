@@ -2,6 +2,10 @@
 
 **Advanced XSS Testing Framework - Top 0.1% Techniques**
 
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-8.0.0-brightgreen.svg)](#)
+[![Tampermonkey](https://img.shields.io/badge/tampermonkey-required-orange.svg)](https://www.tampermonkey.net/)
+
 ## 🎯 Overview
 
 The Elite XSS Framework is a cutting-edge cross-site scripting testing platform designed for security professionals and researchers. It incorporates advanced methodologies known only to elite security researchers while maintaining clean, maintainable code.
@@ -87,10 +91,26 @@ elite-xss-framework/
 
 ## 🛠 Installation
 
+### Method 1: Tampermonkey (Recommended)
+
 1. Install [Tampermonkey](https://www.tampermonkey.net/) extension in your browser
 2. Create a new userscript
 3. Copy the contents of `loader.user.js` into the userscript
 4. Save and enable the script
+
+### Method 2: Local Development
+
+```bash
+# Clone the repository
+git clone https://github.com/Nevrkin/My-XSS.git
+cd My-XSS
+
+# Install dependencies (if any)
+npm install
+
+# Build the project (if needed)
+npm run build
+```
 
 ## 🎯 Usage
 
@@ -99,18 +119,88 @@ elite-xss-framework/
 3. Configure your scan settings
 4. Start testing for XSS vulnerabilities
 
+## ⌨️ Keyboard Shortcuts
+
+- `Ctrl+Shift+X` - Toggle Dashboard
+- `Ctrl+Shift+T` - Quick Test
+- `Ctrl+Shift+S` - Toggle Safe Mode
+
+## 📦 Development
+
+### Project Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/Nevrkin/My-XSS.git
+cd My-XSS
+
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### Module Structure
+
+Each module follows a consistent pattern:
+
+```javascript
+class ModuleName {
+    constructor() {
+        // Module initialization
+    }
+    
+    init() {
+        // Initialize module
+    }
+    
+    // Module methods
+}
+
+// Export for use in other modules
+window.ModuleName = ModuleName;
+```
+
+## 🧪 Testing
+
+```bash
+# Run tests
+npm test
+
+# Run linter
+npm run lint
+
+# Run specific test
+npm test -- test/module.test.js
+```
+
+## 📤 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a pull request
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ## ⚠️ Legal Disclaimer
 
 This tool is intended for educational and authorized security testing purposes only. Users must obtain proper authorization before testing any websites or applications. The authors are not responsible for any misuse or damage caused by this tool.
 
-## 📄 License
+## 🤝 Support
 
-MIT License - See LICENSE file for details
+For issues, questions, or feature requests:
+- Open an issue on GitHub
+- Check existing issues and documentation
+- Contact the maintainers
 
-## 🤝 Contributing
+---
 
-Contributions are welcome! Please read our contributing guidelines before submitting pull requests.
-
-## 📞 Support
-
-For issues, questions, or feature requests, please open an issue on GitHub.
+**⚠️ Important**: This tool should only be used on websites you own or have explicit permission to test. Unauthorized testing may violate laws and terms of service.

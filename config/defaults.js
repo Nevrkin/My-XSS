@@ -319,7 +319,7 @@
             
             performance: {
                 enableWorkers: false,
-                lazy LoadModules: true,
+                "lazyLoadModules": true,
                 cacheResults: true
             },
             

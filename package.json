@@ -8,21 +8,35 @@
     "dev": "node build.js --watch",
     "test": "node test.js",
     "lint": "eslint . --ext .js",
-    "package": "node package.js"
+    "lint:fix": "eslint . --ext .js --fix",
+    "prettier": "prettier --write .",
+    "prettier:check": "prettier --check .",
+    "validate": "node validate.js",
+    "clean": "rimraf dist",
+    "docs": "jsdoc -c jsdoc.json",
+    "release": "standard-version",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm test && npm run lint",
+    "postpublish": "git push --follow-tags"
   },
   "keywords": [
     "xss",
     "security",
     "penetration-testing",
     "vulnerability-scanning",
-    "tampermonkey"
+    "tampermonkey",
+    "ethical-hacking",
+    "web-security",
+    "bug-bounty"
   ],
   "author": "Elite Security Research Team",
   "license": "MIT",
   "devDependencies": {
     "eslint": "^8.0.0",
-    "uglify-js": "^3.14.0",
-    "jszip": "^3.7.0"
+    "prettier": "^2.0.0",
+    "jsdoc": "^3.6.0",
+    "standard-version": "^9.0.0",
+    "rimraf": "^3.0.0"
   },
   "directories": {
     "doc": "docs",
@@ -30,10 +44,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-repo/elite-xss-framework.git"
+    "url": "https://github.com/Nevrkin/My-XSS.git"
   },
   "bugs": {
-    "url": "https://github.com/your-repo/elite-xss-framework/issues"
+    "url": "https://github.com/Nevrkin/My-XSS/issues"
   },
-  "homepage": "https://github.com/your-repo/elite-xss-framework#readme"
+  "homepage": "https://github.com/Nevrkin/My-XSS#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "last 2 Chrome versions",
+    "last 2 Firefox versions",
+    "last 2 Safari versions",
+    "last 2 Edge versions"
+  ]
 }
