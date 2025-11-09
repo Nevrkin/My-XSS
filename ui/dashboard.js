@@ -1,7 +1,7 @@
 /**
  * @file dashboard.js
  * @description Main UI Dashboard
- * @version 8.0.0
+ * @version 8.0.2
  */
 
 (function() {
@@ -24,7 +24,7 @@
             this.container = document.createElement('div');
             this.container.id = 'elite-xss-dashboard';
             this.container.innerHTML = this.getTemplate();
-            
+
             document.body.appendChild(this.container);
             this.attachEventListeners();
             this.loadStyles();
@@ -40,14 +40,14 @@
                             <button class="exss-btn exss-btn-close" data-action="close">×</button>
                         </div>
                     </div>
-                    
+
                     <div class="exss-tabs">
                         <button class="exss-tab active" data-tab="scan">🔍 Scan</button>
                         <button class="exss-tab" data-tab="payloads">💣 Payloads</button>
                         <button class="exss-tab" data-tab="results">📊 Results</button>
                         <button class="exss-tab" data-tab="settings">⚙️ Settings</button>
                     </div>
-                    
+
                     <div class="exss-content">
                         <div class="exss-tab-content active" data-content="scan">
                             ${this.getScanTabContent()}
@@ -62,7 +62,7 @@
                             ${this.getSettingsTabContent()}
                         </div>
                     </div>
-                    
+
                     <div class="exss-footer">
                         <div class="exss-status">
                             <span class="exss-status-indicator"></span>
@@ -84,8 +84,8 @@
                         <h3>🎯 Target Configuration</h3>
                         <div class="exss-form-group">
                             <label>Target URL</label>
-                            <input type="text" id="exss-target-url" 
-                                   value="${window.location.href}" 
+                            <input type="text" id="exss-target-url"
+                                   value="${window.location.href}"
                                    placeholder="https://example.com">
                         </div>
                         <div class="exss-form-group">
@@ -97,7 +97,7 @@
                             </select>
                         </div>
                     </div>
-                    
+
                     <div class="exss-section">
                         <h3>🔧 Options</h3>
                         <div class="exss-checkbox-group">
@@ -109,7 +109,7 @@
                             <label><input type="checkbox" id="exss-bypass-waf"> WAF Bypass Mode</label>
                         </div>
                     </div>
-                    
+
                     <div class="exss-actions-bar">
                         <button class="exss-btn exss-btn-primary" id="exss-start-scan">
                             ▶️ Start Scan
@@ -121,7 +121,7 @@
                             🗑️ Clear
                         </button>
                     </div>
-                    
+
                     <div class="exss-progress" style="display:none;">
                         <div class="exss-progress-bar">
                             <div class="exss-progress-fill" style="width: 0%"></div>
@@ -215,7 +215,7 @@
                             <input type="number" id="exss-timeout" value="10000" min="1000" max="60000">
                         </div>
                     </div>
-                    
+
                     <div class="exss-section">
                         <h3>🎯 Blind XSS Settings</h3>
                         <div class="exss-form-group">
@@ -223,7 +223,7 @@
                             <input type="text" id="exss-callback-url" placeholder="https://your-server.com/callback">
                         </div>
                     </div>
-                    
+
                     <div class="exss-actions-bar">
                         <button class="exss-btn exss-btn-primary" id="exss-save-settings">💾 Save Settings</button>
                         <button class="exss-btn exss-btn-danger" id="exss-reset-settings">🔄 Reset</button>
@@ -244,7 +244,7 @@
             // Window controls
             this.container.querySelector('[data-action="close"]')
                 .addEventListener('click', () => this.hide());
-            
+
             this.container.querySelector('[data-action="minimize"]')
                 .addEventListener('click', () => this.minimize());
 
@@ -281,9 +281,9 @@
         async startScan() {
             const config = this.getScanConfig();
             this.updateStatus('scanning', 'Scanning...');
-            
+
             try {
-                // Use the framework's startScan method directly instead of trying to call it on the orchestrator module
+                // Use the framework's startScan method directly
                 if (this.framework && typeof this.framework.startScan === 'function') {
                     await this.framework.startScan(config.url || window.location.href, {
                         mode: config.mode,
@@ -295,12 +295,61 @@
                         bypassWAF: config.bypassWAF
                     });
                 } else {
-                    console.error('[Elite XSS] Framework startScan method not available');
-                    this.updateStatus('error', 'Framework not ready');
+                    // Fallback: try to load orchestrator directly (for backward compatibility)
+                    console.warn('[Elite XSS] Framework startScan not available, trying direct orchestrator');
+                    try {
+                        const orchestratorModule = await this.framework.loadModule('core', 'orchestrator');
+                        
+                        // Check if orchestrator has startScan method
+                        if (orchestratorModule && typeof orchestratorModule.startScan === 'function') {
+                            await orchestratorModule.startScan({
+                                url: config.url || window.location.href,
+                                mode: config.mode,
+                                testForms: config.testForms,
+                                testInputs: config.testInputs,
+                                testURLs: config.testURLs,
+                                testDOM: config.testDOM,
+                                testBlind: config.testBlind,
+                                bypassWAF: config.bypassWAF
+                            });
+                        } else if (orchestratorModule && typeof orchestratorModule.XSSOrchestrator === 'function') {
+                            // Create orchestrator instance
+                            const engine = await this.framework.loadModule('core', 'engine');
+                            const detection = await this.framework.loadModule('core', 'detection');
+                            const injection = await this.framework.loadModule('core', 'injection');
+                            const validator = await this.framework.loadModule('core', 'validator');
+                            
+                            const orchestrator = new orchestratorModule.XSSOrchestrator(engine, detection, injection, validator);
+                            if (typeof orchestrator.init === 'function') {
+                                orchestrator.init();
+                            }
+                            if (typeof orchestrator.startScan === 'function') {
+                                await orchestrator.startScan({
+                                    url: config.url || window.location.href,
+                                    mode: config.mode,
+                                    testForms: config.testForms,
+                                    testInputs: config.testInputs,
+                                    testURLs: config.testURLs,
+                                    testDOM: config.testDOM,
+                                    testBlind: config.testBlind,
+                                    bypassWAF: config.bypassWAF
+                                });
+                            } else {
+                                console.error('[Elite XSS] Orchestrator startScan method not available');
+                                this.updateStatus('error', 'Orchestrator not ready');
+                            }
+                        } else {
+                            console.error('[Elite XSS] No valid startScan method found');
+                            this.updateStatus('error', 'Scan method not available');
+                        }
+                    } catch (orchestratorError) {
+                        console.error('[Elite XSS] Failed to load orchestrator:', orchestratorError);
+                        this.updateStatus('error', 'Failed to initialize scanner');
+                    }
                 }
             } catch (error) {
-                console.error('Scan failed:', error);
-                this.updateStatus('error', 'Scan failed');
+                console.error('[Elite XSS] Scan failed:', error);
+                this.updateStatus('error', 'Scan failed: ' + error.message);
             }
         }
 
@@ -360,7 +409,7 @@
         updateStatus(type, text) {
             const indicator = this.container.querySelector('.exss-status-indicator');
             const statusText = this.container.querySelector('.exss-status-text');
-            
+
             indicator.className = `exss-status-indicator exss-status-${type}`;
             statusText.textContent = text;
         }
