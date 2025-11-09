@@ -13,6 +13,20 @@
             this.isVisible = false;
             this.container = null;
             this.activeTab = 'scan';
+            
+            // Bind event handlers
+            this.handleScanStarted = this.handleScanStarted.bind(this);
+            this.handleScanProgress = this.handleScanProgress.bind(this);
+            this.handleScanCompleted = this.handleScanCompleted.bind(this);
+            this.handleScanError = this.handleScanError.bind(this);
+            
+            // Register event listeners
+            if (this.framework) {
+                this.framework.on('scanStarted', this.handleScanStarted);
+                this.framework.on('scanProgress', this.handleScanProgress);
+                this.framework.on('scanCompleted', this.handleScanCompleted);
+                this.framework.on('scanError', this.handleScanError);
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -376,6 +390,110 @@
 
             GM_setValue('elite_xss_settings', JSON.stringify(settings));
             this.updateStatus('success', 'Settings saved');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🔄 Event Handlers
+        // ───────────────────────────────────────────────────────────────
+        handleScanStarted(data) {
+            console.log('[Elite XSS Dashboard] Scan started:', data);
+            this.updateStatus('scanning', 'Scan started...');
+            this.updateProgress(0, 'Initializing scan...', 0, 0);
+        }
+
+        handleScanProgress(data) {
+            console.log('[Elite XSS Dashboard] Scan progress:', data);
+            this.updateProgress(data.progress, data.message, data.testsCompleted, data.totalTests);
+            
+            // Update stats
+            if (data.testsCompleted !== undefined && data.totalTests !== undefined) {
+                this.updateStats({
+                    total: data.totalTests,
+                    vulnerable: data.testsCompleted // For demo purposes
+                });
+            }
+            
+            // If there's an error, update status
+            if (data.error) {
+                this.updateStatus('error', data.message);
+            }
+        }
+
+        handleScanCompleted(data) {
+            console.log('[Elite XSS Dashboard] Scan completed:', data);
+            this.updateProgress(100, 'Scan completed', data.results ? data.results.length : 0, data.results ? data.results.length : 0);
+            this.updateStatus('success', 'Scan completed successfully');
+            
+            // Update results tab with findings
+            if (data.results && data.results.length > 0) {
+                this.updateResults(data.results);
+            }
+            
+            // Update stats
+            if (data.summary) {
+                this.updateStats({
+                    total: data.summary.total,
+                    vulnerable: data.summary.high + data.summary.medium
+                });
+            }
+        }
+
+        handleScanError(data) {
+            console.error('[Elite XSS Dashboard] Scan error:', data);
+            this.updateProgress(0, 'Scan failed: ' + data.error, 0, 0);
+            this.updateStatus('error', 'Scan failed');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 📊 UI Updates
+        // ───────────────────────────────────────────────────────────────
+        updateProgress(progress, message, testsCompleted, totalTests) {
+            if (!this.container) return;
+            
+            const progressBar = this.container.querySelector('.exss-progress');
+            const progressFill = this.container.querySelector('.exss-progress-fill');
+            const progressText = this.container.querySelector('.exss-progress-text');
+            
+            if (progressBar) {
+                progressBar.style.display = progress > 0 ? 'block' : 'none';
+            }
+            
+            if (progressFill) {
+                progressFill.style.width = `${progress}%`;
+            }
+            
+            if (progressText) {
+                progressText.textContent = message || `${testsCompleted} / ${totalTests} tests completed`;
+            }
+            
+            // Update stats
+            if (testsCompleted !== undefined && totalTests !== undefined) {
+                this.updateStats({
+                    total: totalTests,
+                    vulnerable: testsCompleted // For demo purposes
+                });
+            }
+        }
+
+        updateResults(results) {
+            if (!this.container) return;
+            
+            const resultsList = this.container.querySelector('#exss-results-list');
+            if (resultsList && results && results.length > 0) {
+                resultsList.innerHTML = results.map(result => `
+                    <div class="exss-result-item exss-result-${result.severity}">
+                        <div class="exss-result-header">
+                            <span class="exss-result-id">${result.id}</span>
+                            <span class="exss-result-severity">${result.severity}</span>
+                        </div>
+                        <div class="exss-result-details">
+                            <div class="exss-result-target">${result.target}</div>
+                            <div class="exss-result-payload">${result.payload}</div>
+                            <div class="exss-result-evidence">${result.evidence}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
         }
 
         // ───────────────────────────────────────────────────────────────

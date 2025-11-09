@@ -246,14 +246,19 @@
                 /* Progress */
                 .exss-progress {
                     margin-top: 20px;
+                    padding: 15px;
+                    background: #2d2d2d;
+                    border-radius: 6px;
+                    border: 1px solid #3a3a3a;
                 }
 
                 .exss-progress-bar {
                     width: 100%;
-                    height: 8px;
+                    height: 20px;
                     background: #333;
-                    border-radius: 4px;
+                    border-radius: 10px;
                     overflow: hidden;
+                    margin-bottom: 10px;
                 }
 
                 .exss-progress-fill {
@@ -264,8 +269,7 @@
 
                 .exss-progress-text {
                     text-align: center;
-                    margin-top: 8px;
-                    font-size: 13px;
+                    font-size: 14px;
                     color: #aaa;
                 }
 
@@ -274,6 +278,20 @@
                     display: flex;
                     justify-content: space-between;
                     margin-bottom: 20px;
+                    gap: 10px;
+                }
+
+                .exss-results-filter select,
+                .exss-results-filter button {
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                }
+
+                .exss-results-stats {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                    gap: 15px;
+                    margin-bottom: 20px;
                 }
 
                 .exss-stat-card {
@@ -281,7 +299,6 @@
                     padding: 15px;
                     border-radius: 6px;
                     text-align: center;
-                    margin-bottom: 15px;
                     border: 1px solid #3a3a3a;
                 }
 
@@ -307,6 +324,76 @@
 
                 .exss-stat-medium .exss-stat-value {
                     color: #ffc107;
+                }
+
+                .exss-results-list {
+                    max-height: 400px;
+                    overflow-y: auto;
+                }
+
+                .exss-result-item {
+                    background: #2d2d2d;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin-bottom: 15px;
+                    border: 1px solid #3a3a3a;
+                }
+
+                .exss-result-high {
+                    border-left: 4px solid #f44336;
+                }
+
+                .exss-result-medium {
+                    border-left: 4px solid #ff9800;
+                }
+
+                .exss-result-low {
+                    border-left: 4px solid #4caf50;
+                }
+
+                .exss-result-header {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                }
+
+                .exss-result-id {
+                    font-weight: bold;
+                    color: #4caf50;
+                }
+
+                .exss-result-severity {
+                    text-transform: uppercase;
+                    font-size: 12px;
+                    font-weight: bold;
+                    padding: 2px 8px;
+                    border-radius: 10px;
+                    background: #333;
+                }
+
+                .exss-result-details {
+                    font-size: 14px;
+                }
+
+                .exss-result-target {
+                    color: #2196f3;
+                    margin-bottom: 5px;
+                    word-break: break-all;
+                }
+
+                .exss-result-payload {
+                    background: #333;
+                    padding: 8px;
+                    border-radius: 4px;
+                    margin-bottom: 5px;
+                    font-family: monospace;
+                    font-size: 12px;
+                    word-break: break-all;
+                }
+
+                .exss-result-evidence {
+                    color: #aaa;
+                    font-size: 13px;
                 }
 
                 /* Payloads */
