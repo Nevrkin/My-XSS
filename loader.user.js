@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Elite XSS Testing Framework v8.0
 // @namespace    http://tampermonkey.net/
-// @version      8.0.2
+// @version      8.0.3
 // @description  Advanced XSS Testing Framework - Top 0.1% Techniques
 // @author       Elite Security Research Team
 // @match        *://*/*
@@ -26,7 +26,7 @@
     // 🔧 Configuration
     // ═══════════════════════════════════════════════════════════════════
     const CONFIG = {
-        version: '8.0.2',
+        version: '8.0.3',
         baseUrl: 'https://raw.githubusercontent.com/Nevrkin/My-XSS/main/',
         cacheExpiry: 3600000, // 1 hour
         devMode: false,

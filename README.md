@@ -203,6 +203,12 @@ For issues, questions, or feature requests:
 
 ## 📋 Recent Fixes
 
+### v8.0.3 - Orchestrator startScan Method Resolution
+- **Fixed Missing Method**: Added missing `startScan` method to orchestrator module
+- **Enhanced Error Handling**: Improved dashboard error handling with better fallback mechanisms
+- **Method Compatibility**: Enhanced compatibility between dashboard and orchestrator modules
+- **Debugging Improvements**: Added better error propagation and debugging information
+
 ### v8.0.2 - Orchestrator Method Resolution
 - **Fixed Method Calls**: Resolved `TypeError: orchestrator.startScan is not a function` errors
 - **Dashboard Integration**: Fixed dashboard to use framework methods correctly
