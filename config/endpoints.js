@@ -12,12 +12,12 @@
         // 🌐 Framework Services
         // ═══════════════════════════════════════════════════════════════
         framework: {
-            updateCheck: 'https://api.github.com/repos/elite-xss/framework/releases/latest',
-            payloadLibrary: 'https://raw.githubusercontent.com/elite-xss/payloads/main/',
+            updateCheck: 'https://api.github.com/repos/Nevrkin/My-XSS/releases/latest',
+            payloadLibrary: 'https://raw.githubusercontent.com/Nevrkin/My-XSS/main/payloads/',
             documentation: 'https://docs.elite-xss.com',
             support: 'https://support.elite-xss.com',
             community: 'https://discord.gg/elite-xss',
-            issues: 'https://github.com/elite-xss/framework/issues'
+            issues: 'https://github.com/Nevrkin/My-XSS/issues'
         },
 
         // ═══════════════════════════════════════════════════════════════

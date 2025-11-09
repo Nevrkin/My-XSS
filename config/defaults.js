@@ -379,7 +379,7 @@
             version: '8.0.0',
             author: 'Elite Security Research Team',
             license: 'MIT',
-            repository: 'https://github.com/elite-xss/framework',
+            repository: 'https://github.com/Nevrkin/My-XSS',
             documentation: 'https://docs.elite-xss.com',
             
             lastUpdated: '2025-01-09',
