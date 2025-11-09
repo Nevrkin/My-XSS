@@ -203,6 +203,12 @@ For issues, questions, or feature requests:
 
 ## 📋 Recent Fixes
 
+### v8.0.2 - Orchestrator Method Resolution
+- **Fixed Method Calls**: Resolved `TypeError: orchestrator.startScan is not a function` errors
+- **Dashboard Integration**: Fixed dashboard to use framework methods correctly
+- **Enhanced Quick Test**: Improved quick test implementation with proper orchestrator initialization
+- **Method Detection**: Improved detection of available methods in loaded modules
+
 ### v8.0.1 - Module Loading Fixes
 - **Fixed Path Mapping**: Corrected UI module loading paths (`ui/` directory)
 - **Added Fallback Methods**: Dashboard toggle method with multiple fallback options
