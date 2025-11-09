@@ -283,8 +283,21 @@
             this.updateStatus('scanning', 'Scanning...');
             
             try {
-                const orchestrator = await this.framework.loadModule('core', 'orchestrator');
-                await orchestrator.startScan(config);
+                // Use the framework's startScan method directly instead of trying to call it on the orchestrator module
+                if (this.framework && typeof this.framework.startScan === 'function') {
+                    await this.framework.startScan(config.url || window.location.href, {
+                        mode: config.mode,
+                        testForms: config.testForms,
+                        testInputs: config.testInputs,
+                        testURLs: config.testURLs,
+                        testDOM: config.testDOM,
+                        testBlind: config.testBlind,
+                        bypassWAF: config.bypassWAF
+                    });
+                } else {
+                    console.error('[Elite XSS] Framework startScan method not available');
+                    this.updateStatus('error', 'Framework not ready');
+                }
             } catch (error) {
                 console.error('Scan failed:', error);
                 this.updateStatus('error', 'Scan failed');

@@ -418,24 +418,52 @@
                 if (orchestratorModule && typeof orchestratorModule.create === 'function') {
                     orchestratorInstance = orchestratorModule.create(this);
                 } else if (orchestratorModule && typeof orchestratorModule.XSSOrchestrator === 'function') {
-                    orchestratorInstance = new orchestratorModule.XSSOrchestrator();
+                    // Need to provide the required dependencies
+                    const engine = await this.loadModule('core', 'engine');
+                    const detection = await this.loadModule('core', 'detection');
+                    const injection = await this.loadModule('core', 'injection');
+                    const validator = await this.loadModule('core', 'validator');
+                    
+                    orchestratorInstance = new orchestratorModule.XSSOrchestrator(
+                        engine, detection, injection, validator
+                    );
                 } else if (typeof window.XSSOrchestrator === 'function') {
-                    orchestratorInstance = new window.XSSOrchestrator();
+                    // Need to provide the required dependencies
+                    const engine = await this.loadModule('core', 'engine');
+                    const detection = await this.loadModule('core', 'detection');
+                    const injection = await this.loadModule('core', 'injection');
+                    const validator = await this.loadModule('core', 'validator');
+                    
+                    orchestratorInstance = new window.XSSOrchestrator(
+                        engine, detection, injection, validator
+                    );
                 }
                 
                 if (orchestratorInstance) {
-                    // Try different test methods
-                    if (typeof orchestratorInstance.runQuickTest === 'function') {
-                        orchestratorInstance.runQuickTest();
-                    } else if (typeof orchestratorInstance.quickScan === 'function') {
-                        orchestratorInstance.quickScan();
-                    } else if (typeof orchestratorInstance.startScan === 'function') {
-                        orchestratorInstance.startScan({
-                            url: window.location.href,
-                            mode: 'quick'
-                        });
+                    // Initialize if needed
+                    if (typeof orchestratorInstance.init === 'function') {
+                        orchestratorInstance.init();
+                    }
+                    
+                    // For a quick test, we'll create a simple test and execute it
+                    if (typeof orchestratorInstance.scheduleTest === 'function' && 
+                        typeof orchestratorInstance.executeTests === 'function') {
+                        
+                        // Create a simple test
+                        const quickTest = {
+                            id: 'quick-' + Date.now(),
+                            target: window.location.href,
+                            payload: '<script>alert(1)</script>',
+                            type: 'quick'
+                        };
+                        
+                        // Schedule and execute the test
+                        orchestratorInstance.scheduleTest(quickTest);
+                        const results = await orchestratorInstance.executeTests();
+                        
+                        console.log('[Elite XSS] Quick test completed:', results);
                     } else {
-                        console.log('[Elite XSS] Quick test not available in orchestrator');
+                        console.log('[Elite XSS] Orchestrator methods not available for quick test');
                     }
                 } else {
                     console.log('[Elite XSS] Orchestrator module loaded but no instance created');
@@ -625,15 +653,63 @@
         async startScan(target, options = {}) {
             console.log(`[Elite XSS] Starting scan for target: ${target}`);
             
-            // Dispatch scan start event
-            this.emit('scanStarted', { target, options });
-            
-            // Implementation would go here
-            return {
-                status: 'started',
-                target: target,
-                timestamp: new Date().toISOString()
-            };
+            try {
+                // Load orchestrator module
+                const orchestratorModule = await this.loadModule('core', 'orchestrator');
+                
+                // Handle different export formats
+                let orchestratorInstance;
+                if (orchestratorModule && typeof orchestratorModule.create === 'function') {
+                    orchestratorInstance = orchestratorModule.create(this);
+                } else if (orchestratorModule && typeof orchestratorModule.XSSOrchestrator === 'function') {
+                    // Need to provide the required dependencies
+                    const engine = await this.loadModule('core', 'engine');
+                    const detection = await this.loadModule('core', 'detection');
+                    const injection = await this.loadModule('core', 'injection');
+                    const validator = await this.loadModule('core', 'validator');
+                    
+                    orchestratorInstance = new orchestratorModule.XSSOrchestrator(
+                        engine, detection, injection, validator
+                    );
+                } else if (typeof window.XSSOrchestrator === 'function') {
+                    // Need to provide the required dependencies
+                    const engine = await this.loadModule('core', 'engine');
+                    const detection = await this.loadModule('core', 'detection');
+                    const injection = await this.loadModule('core', 'injection');
+                    const validator = await this.loadModule('core', 'validator');
+                    
+                    orchestratorInstance = new window.XSSOrchestrator(
+                        engine, detection, injection, validator
+                    );
+                }
+                
+                if (orchestratorInstance) {
+                    // Initialize if needed
+                    if (typeof orchestratorInstance.init === 'function') {
+                        orchestratorInstance.init();
+                    }
+                    
+                    // For now, we'll just log that the scan would start
+                    // In a real implementation, this would create and schedule tests
+                    console.log('[Elite XSS] Scan initialized for target:', target);
+                    console.log('[Elite XSS] Options:', options);
+                    
+                    // Dispatch scan start event
+                    this.emit('scanStarted', { target, options });
+                    
+                    return {
+                        status: 'started',
+                        target: target,
+                        timestamp: new Date().toISOString()
+                    };
+                } else {
+                    throw new Error('Failed to create orchestrator instance');
+                }
+            } catch (error) {
+                console.error('[Elite XSS] Failed to start scan:', error);
+                this.emit('scanError', { target, options, error });
+                throw error;
+            }
         }
 
         // ───────────────────────────────────────────────────────────────
