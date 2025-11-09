@@ -1,775 +1,1135 @@
 /**
- * @file endpoint-discovery.js
- * @description Advanced endpoint & parameter discovery for XSS testing
- * @version 8.0.0
+ * Elite XSS Framework v8.0 - Advanced Endpoint Discovery
+ * Discovers 25+ injection point types using cutting-edge techniques
  */
 
-(function() {
-    'use strict';
+(function(exports, FRAMEWORK, GM_getValue, GM_setValue, GM_deleteValue, GM_notification, unsafeWindow) {
+  'use strict';
 
-    class EndpointDiscovery {
-        constructor(framework) {
-            this.framework = framework;
-            this.discovered = new Map();
-            this.patterns = {
-                forms: 'form',
-                inputs: 'input, textarea, [contenteditable="true"]',
-                urls: 'a[href], link[href], script[src], img[src], iframe[src]',
-                ajax: /\.ajax\(|fetch\(|XMLHttpRequest/g,
-                params: /[?&]([^=]+)=/g,
-                jsonEndpoints: /\/api\/|\.json/i,
-                postMessage: /postMessage\(/g
-            };
-            this.scanResults = {
-                forms: [],
-                inputs: [],
-                urls: [],
-                parameters: new Set(),
-                apiEndpoints: [],
-                eventHandlers: [],
-                postMessageTargets: []
-            };
+  const EndpointDiscovery = {
+    // Discovery categories
+    CATEGORIES: {
+      URL: 'URL & Navigation',
+      FORMS: 'Forms & Inputs',
+      DOM: 'DOM Manipulation',
+      STORAGE: 'Web Storage',
+      MESSAGING: 'Cross-Context Communication',
+      ADVANCED: 'Advanced Vectors',
+      API: 'API & AJAX',
+      TEMPLATES: 'Template Engines',
+      MODERN: 'Modern Web APIs'
+    },
+
+    // Endpoint types with metadata
+    ENDPOINT_TYPES: {
+      // URL & Navigation
+      url_parameter: { category: 'URL', risk: 'high', context: 'url' },
+      hash_parameter: { category: 'URL', risk: 'high', context: 'url' },
+      path_segment: { category: 'URL', risk: 'medium', context: 'url' },
+      referrer: { category: 'URL', risk: 'medium', context: 'url' },
+      window_name: { category: 'URL', risk: 'medium', context: 'javascript' },
+      history_state: { category: 'URL', risk: 'medium', context: 'javascript' },
+
+      // Forms & Inputs
+      form_input: { category: 'FORMS', risk: 'high', context: 'html' },
+      textarea: { category: 'FORMS', risk: 'high', context: 'html' },
+      select_option: { category: 'FORMS', risk: 'medium', context: 'html' },
+      hidden_input: { category: 'FORMS', risk: 'medium', context: 'html' },
+      file_input: { category: 'FORMS', risk: 'high', context: 'html' },
+      contenteditable: { category: 'FORMS', risk: 'critical', context: 'html' },
+
+      // DOM
+      inner_html: { category: 'DOM', risk: 'critical', context: 'html' },
+      text_content: { category: 'DOM', risk: 'low', context: 'text' },
+      attribute: { category: 'DOM', risk: 'high', context: 'attribute' },
+      data_attribute: { category: 'DOM', risk: 'medium', context: 'attribute' },
+      dom_clobbering: { category: 'DOM', risk: 'high', context: 'javascript' },
+
+      // Storage
+      local_storage: { category: 'STORAGE', risk: 'high', context: 'storage' },
+      session_storage: { category: 'STORAGE', risk: 'high', context: 'storage' },
+      indexed_db: { category: 'STORAGE', risk: 'medium', context: 'storage' },
+      cookie: { category: 'STORAGE', risk: 'high', context: 'cookie' },
+      cache_api: { category: 'STORAGE', risk: 'medium', context: 'storage' },
+
+      // Messaging
+      post_message: { category: 'MESSAGING', risk: 'critical', context: 'javascript' },
+      broadcast_channel: { category: 'MESSAGING', risk: 'high', context: 'javascript' },
+      message_channel: { category: 'MESSAGING', risk: 'high', context: 'javascript' },
+      web_socket: { category: 'MESSAGING', risk: 'high', context: 'javascript' },
+      sse: { category: 'MESSAGING', risk: 'medium', context: 'javascript' },
+
+      // Advanced
+      svg_injection: { category: 'ADVANCED', risk: 'critical', context: 'svg' },
+      css_injection: { category: 'ADVANCED', risk: 'high', context: 'css' },
+      jsonp_callback: { category: 'ADVANCED', risk: 'critical', context: 'javascript' },
+      xml_injection: { category: 'ADVANCED', risk: 'high', context: 'xml' },
+      prototype_pollution: { category: 'ADVANCED', risk: 'critical', context: 'javascript' },
+
+      // API & AJAX
+      xhr_response: { category: 'API', risk: 'high', context: 'javascript' },
+      fetch_response: { category: 'API', risk: 'high', context: 'javascript' },
+      graphql_query: { category: 'API', risk: 'high', context: 'javascript' },
+      rest_endpoint: { category: 'API', risk: 'high', context: 'javascript' },
+
+      // Templates
+      angular_template: { category: 'TEMPLATES', risk: 'critical', context: 'template' },
+      vue_template: { category: 'TEMPLATES', risk: 'critical', context: 'template' },
+      react_props: { category: 'TEMPLATES', risk: 'high', context: 'template' },
+      handlebars: { category: 'TEMPLATES', risk: 'critical', context: 'template' },
+
+      // Modern APIs
+      service_worker: { category: 'MODERN', risk: 'high', context: 'javascript' },
+      web_worker: { category: 'MODERN', risk: 'medium', context: 'javascript' },
+      shared_worker: { category: 'MODERN', risk: 'medium', context: 'javascript' },
+      notification_api: { category: 'MODERN', risk: 'low', context: 'javascript' },
+      file_system_api: { category: 'MODERN', risk: 'medium', context: 'javascript' }
+    },
+
+    /**
+     * Main discovery function - finds all testable endpoints
+     */
+    discover: async (config = {}) => {
+      console.log('[EndpointDiscovery] Starting comprehensive scan...');
+      
+      const endpoints = [];
+      const startTime = Date.now();
+
+      try {
+        // Run all discovery methods
+        const discoveryMethods = [
+          EndpointDiscovery.discoverURLEndpoints,
+          EndpointDiscovery.discoverFormEndpoints,
+          EndpointDiscovery.discoverDOMEndpoints,
+          EndpointDiscovery.discoverStorageEndpoints,
+          EndpointDiscovery.discoverMessagingEndpoints,
+          EndpointDiscovery.discoverAdvancedEndpoints,
+          EndpointDiscovery.discoverAPIEndpoints,
+          EndpointDiscovery.discoverTemplateEndpoints,
+          EndpointDiscovery.discoverModernAPIs
+        ];
+
+        // Run discovery methods in parallel
+        const results = await Promise.allSettled(
+          discoveryMethods.map(method => method(config))
+        );
+
+        // Collect all endpoints
+        results.forEach((result, idx) => {
+          if (result.status === 'fulfilled') {
+            endpoints.push(...result.value);
+          } else {
+            console.warn(`[EndpointDiscovery] Method ${idx} failed:`, result.reason);
+          }
+        });
+
+        // Deduplicate endpoints
+        const uniqueEndpoints = EndpointDiscovery.deduplicateEndpoints(endpoints);
+
+        // Enrich endpoint metadata
+        const enrichedEndpoints = EndpointDiscovery.enrichEndpoints(uniqueEndpoints, config);
+
+        // Apply filters if specified
+        const filteredEndpoints = EndpointDiscovery.filterEndpoints(enrichedEndpoints, config);
+
+        const duration = Date.now() - startTime;
+        console.log(`[EndpointDiscovery] Found ${filteredEndpoints.length} unique endpoints in ${duration}ms`);
+
+        return filteredEndpoints;
+
+      } catch (error) {
+        console.error('[EndpointDiscovery] Discovery failed:', error);
+        return [];
+      }
+    },
+
+    /**
+     * Discover URL-based endpoints
+     */
+    discoverURLEndpoints: async (config) => {
+      const endpoints = [];
+
+      // URL Parameters
+      const url = new URL(window.location.href);
+      url.searchParams.forEach((value, key) => {
+        endpoints.push({
+          id: `url_param_${key}_${Date.now()}`,
+          type: 'url_parameter',
+          name: key,
+          value: value,
+          location: window.location.href,
+          testable: true,
+          injectionPoint: 'url_param',
+          extractionMethod: 'url_search_params'
+        });
+      });
+
+      // Hash Parameters
+      if (window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        hashParams.forEach((value, key) => {
+          endpoints.push({
+            id: `hash_param_${key}_${Date.now()}`,
+            type: 'hash_parameter',
+            name: key,
+            value: value,
+            location: window.location.href,
+            testable: true,
+            injectionPoint: 'url_hash',
+            extractionMethod: 'url_hash_params'
+          });
+        });
+      }
+
+      // Path segments (for RESTful APIs)
+      const pathSegments = window.location.pathname.split('/').filter(s => s);
+      pathSegments.forEach((segment, idx) => {
+        if (!/^\d+$/.test(segment) && segment.length > 2) {
+          endpoints.push({
+            id: `path_${idx}_${Date.now()}`,
+            type: 'path_segment',
+            name: `path_${idx}`,
+            value: segment,
+            location: window.location.pathname,
+            testable: true,
+            injectionPoint: 'url_path',
+            extractionMethod: 'pathname_split'
+          });
         }
+      });
 
-        // ═══════════════════════════════════════════════════════════════
-        // 🔍 Main Discovery Orchestrator
-        // ═══════════════════════════════════════════════════════════════
-        async discover(options = {}) {
-            console.log('[Discovery] Starting comprehensive scan...');
-            
-            const startTime = performance.now();
-            
-            try {
-                await Promise.all([
-                    this.discoverForms(),
-                    this.discoverInputs(),
-                    this.discoverURLs(),
-                    this.discoverParameters(),
-                    this.discoverAPIEndpoints(),
-                    this.discoverEventHandlers(),
-                    this.discoverPostMessageChannels(),
-                    this.discoverDynamicContent(),
-                    this.discoverWebSockets(),
-                    this.discoverLocalStorage()
-                ]);
+      // Document referrer
+      if (document.referrer) {
+        endpoints.push({
+          id: `referrer_${Date.now()}`,
+          type: 'referrer',
+          name: 'document.referrer',
+          value: document.referrer,
+          location: document.referrer,
+          testable: true,
+          injectionPoint: 'referrer',
+          extractionMethod: 'document_referrer'
+        });
+      }
 
-                // Advanced techniques
-                if (options.deep) {
-                    await this.deepScan();
-                }
+      // Window.name
+      if (window.name) {
+        endpoints.push({
+          id: `window_name_${Date.now()}`,
+          type: 'window_name',
+          name: 'window.name',
+          value: window.name,
+          location: 'window.name',
+          testable: true,
+          injectionPoint: 'window_name',
+          extractionMethod: 'window_property'
+        });
+      }
 
-                const duration = performance.now() - startTime;
-                const summary = this.generateSummary(duration);
+      // History state
+      if (history.state) {
+        endpoints.push({
+          id: `history_state_${Date.now()}`,
+          type: 'history_state',
+          name: 'history.state',
+          value: JSON.stringify(history.state),
+          location: 'history.state',
+          testable: true,
+          injectionPoint: 'history_state',
+          extractionMethod: 'history_api'
+        });
+      }
 
-                this.framework.emit('discoveryComplete', { 
-                    summary, 
-                    results: this.scanResults 
-                });
+      return endpoints;
+    },
 
-                return summary;
+    /**
+     * Discover form-based endpoints
+     */
+    discoverFormEndpoints: async (config) => {
+      const endpoints = [];
 
-            } catch (error) {
-                console.error('[Discovery] Scan failed:', error);
-                throw error;
-            }
+      // Text inputs and textareas
+      document.querySelectorAll('input[type="text"], input[type="search"], input:not([type]), textarea').forEach((elem, idx) => {
+        const name = elem.name || elem.id || `input_${idx}`;
+        const type = elem.tagName.toLowerCase() === 'textarea' ? 'textarea' : 'form_input';
+        
+        endpoints.push({
+          id: `${type}_${name}_${idx}_${Date.now()}`,
+          type: type,
+          name: name,
+          value: elem.value,
+          element: elem,
+          form: elem.form?.name || null,
+          location: elem.getAttribute('name') || elem.getAttribute('id'),
+          testable: true,
+          injectionPoint: 'form_value',
+          extractionMethod: 'dom_query',
+          attributes: EndpointDiscovery.getElementAttributes(elem)
+        });
+      });
+
+      // Select elements
+      document.querySelectorAll('select').forEach((select, idx) => {
+        const name = select.name || select.id || `select_${idx}`;
+        endpoints.push({
+          id: `select_${name}_${idx}_${Date.now()}`,
+          type: 'select_option',
+          name: name,
+          value: select.value,
+          element: select,
+          form: select.form?.name || null,
+          options: Array.from(select.options).map(o => o.value),
+          location: select.getAttribute('name') || select.getAttribute('id'),
+          testable: true,
+          injectionPoint: 'form_value',
+          extractionMethod: 'dom_query'
+        });
+      });
+
+      // Hidden inputs (often used for CSRF tokens, session IDs)
+      document.querySelectorAll('input[type="hidden"]').forEach((hidden, idx) => {
+        const name = hidden.name || hidden.id || `hidden_${idx}`;
+        endpoints.push({
+          id: `hidden_${name}_${idx}_${Date.now()}`,
+          type: 'hidden_input',
+          name: name,
+          value: hidden.value,
+          element: hidden,
+          form: hidden.form?.name || null,
+          location: hidden.getAttribute('name'),
+          testable: true,
+          injectionPoint: 'form_value',
+          extractionMethod: 'dom_query'
+        });
+      });
+
+      // File inputs
+      document.querySelectorAll('input[type="file"]').forEach((file, idx) => {
+        const name = file.name || file.id || `file_${idx}`;
+        endpoints.push({
+          id: `file_${name}_${idx}_${Date.now()}`,
+          type: 'file_input',
+          name: name,
+          value: null,
+          element: file,
+          accept: file.accept,
+          location: file.getAttribute('name'),
+          testable: true,
+          injectionPoint: 'file_metadata',
+          extractionMethod: 'dom_query',
+          advanced: true
+        });
+      });
+
+      // ContentEditable elements
+      document.querySelectorAll('[contenteditable="true"]').forEach((editable, idx) => {
+        const name = editable.id || `contenteditable_${idx}`;
+        endpoints.push({
+          id: `ce_${name}_${idx}_${Date.now()}`,
+          type: 'contenteditable',
+          name: name,
+          value: editable.innerHTML,
+          element: editable,
+          location: editable.getAttribute('id') || `nth:${idx}`,
+          testable: true,
+          injectionPoint: 'inner_html',
+          extractionMethod: 'dom_query'
+        });
+      });
+
+      return endpoints;
+    },
+
+    /**
+     * Discover DOM manipulation endpoints
+     */
+    discoverDOMEndpoints: async (config) => {
+      const endpoints = [];
+
+      // Elements with dynamic innerHTML
+      const dynamicElements = document.querySelectorAll('[data-content], [data-html], [data-text]');
+      dynamicElements.forEach((elem, idx) => {
+        endpoints.push({
+          id: `dom_innerHTML_${idx}_${Date.now()}`,
+          type: 'inner_html',
+          name: elem.id || elem.className || `element_${idx}`,
+          value: elem.innerHTML,
+          element: elem,
+          location: elem.getAttribute('id') || `class:${elem.className}`,
+          testable: true,
+          injectionPoint: 'inner_html',
+          extractionMethod: 'dom_query'
+        });
+      });
+
+      // Data attributes (often reflect user input)
+      document.querySelectorAll('[data-user], [data-input], [data-value]').forEach((elem, idx) => {
+        const dataAttrs = EndpointDiscovery.getDataAttributes(elem);
+        Object.entries(dataAttrs).forEach(([attr, value]) => {
+          endpoints.push({
+            id: `data_attr_${attr}_${idx}_${Date.now()}`,
+            type: 'data_attribute',
+            name: attr,
+            value: value,
+            element: elem,
+            location: `data-${attr}`,
+            testable: true,
+            injectionPoint: 'attribute',
+            extractionMethod: 'data_attribute'
+          });
+        });
+      });
+
+      // DOM Clobbering candidates
+      const clobberableForms = document.querySelectorAll('form[name], form[id]');
+      clobberableForms.forEach((form, idx) => {
+        endpoints.push({
+          id: `dom_clob_form_${idx}_${Date.now()}`,
+          type: 'dom_clobbering',
+          name: form.name || form.id,
+          value: null,
+          element: form,
+          location: form.name || form.id,
+          testable: true,
+          injectionPoint: 'dom_property',
+          extractionMethod: 'dom_analysis',
+          advanced: true
+        });
+      });
+
+      // Named elements (images, anchors)
+      document.querySelectorAll('img[name], a[name]').forEach((elem, idx) => {
+        endpoints.push({
+          id: `named_elem_${idx}_${Date.now()}`,
+          type: 'dom_clobbering',
+          name: elem.name,
+          value: elem.src || elem.href,
+          element: elem,
+          location: elem.name,
+          testable: true,
+          injectionPoint: 'dom_property',
+          extractionMethod: 'named_elements'
+        });
+      });
+
+      return endpoints;
+    },
+
+    /**
+     * Discover storage-based endpoints
+     */
+    discoverStorageEndpoints: async (config) => {
+      const endpoints = [];
+
+      // LocalStorage
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          endpoints.push({
+            id: `ls_${key}_${Date.now()}`,
+            type: 'local_storage',
+            name: key,
+            value: localStorage.getItem(key),
+            location: 'localStorage',
+            testable: true,
+            injectionPoint: 'storage_value',
+            extractionMethod: 'storage_api'
+          });
         }
+      } catch (e) {
+        console.warn('[EndpointDiscovery] LocalStorage access denied');
+      }
 
-        // ───────────────────────────────────────────────────────────────
-        // 📝 Form Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverForms() {
-            const forms = document.querySelectorAll('form');
-            
-            for (const form of forms) {
-                const formData = {
-                    id: form.id || this.generateId('form'),
-                    name: form.name,
-                    action: form.action,
-                    method: form.method.toUpperCase() || 'GET',
-                    enctype: form.enctype,
-                    inputs: [],
-                    context: this.getElementContext(form),
-                    securityHeaders: this.analyzeFormSecurity(form)
-                };
-
-                // Extract all inputs
-                const inputs = form.querySelectorAll('input, textarea, select');
-                for (const input of inputs) {
-                    formData.inputs.push({
-                        name: input.name,
-                        type: input.type || 'text',
-                        value: input.value,
-                        required: input.required,
-                        pattern: input.pattern,
-                        maxLength: input.maxLength,
-                        validation: this.detectValidation(input)
-                    });
-                }
-
-                this.scanResults.forms.push(formData);
-                this.discovered.set(formData.id, { type: 'form', data: formData });
-            }
-
-            console.log(`[Discovery] Found ${forms.length} forms`);
+      // SessionStorage
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          endpoints.push({
+            id: `ss_${key}_${Date.now()}`,
+            type: 'session_storage',
+            name: key,
+            value: sessionStorage.getItem(key),
+            location: 'sessionStorage',
+            testable: true,
+            injectionPoint: 'storage_value',
+            extractionMethod: 'storage_api'
+          });
         }
+      } catch (e) {
+        console.warn('[EndpointDiscovery] SessionStorage access denied');
+      }
 
-        // ───────────────────────────────────────────────────────────────
-        // 🎯 Input Discovery (All Injectable Points)
-        // ───────────────────────────────────────────────────────────────
-        async discoverInputs() {
-            const inputs = document.querySelectorAll(this.patterns.inputs);
-            
-            for (const input of inputs) {
-                const inputData = {
-                    id: input.id || this.generateId('input'),
-                    element: input,
-                    tagName: input.tagName.toLowerCase(),
-                    type: input.type || 'text',
-                    name: input.name,
-                    value: input.value || input.textContent,
-                    placeholder: input.placeholder,
-                    context: this.detectInputContext(input),
-                    sinks: this.identifyNearestSinks(input),
-                    sanitization: this.detectSanitization(input),
-                    eventListeners: this.extractEventListeners(input),
-                    dataAttributes: this.extractDataAttributes(input),
-                    reflectedIn: this.findReflections(input.value || input.textContent)
-                };
-
-                this.scanResults.inputs.push(inputData);
-                this.discovered.set(inputData.id, { type: 'input', data: inputData });
-            }
-
-            console.log(`[Discovery] Found ${inputs.length} input points`);
+      // Cookies
+      const cookies = document.cookie.split(';');
+      cookies.forEach(cookie => {
+        const [name, value] = cookie.split('=').map(s => s.trim());
+        if (name) {
+          endpoints.push({
+            id: `cookie_${name}_${Date.now()}`,
+            type: 'cookie',
+            name: name,
+            value: value,
+            location: 'document.cookie',
+            testable: true,
+            injectionPoint: 'cookie_value',
+            extractionMethod: 'cookie_parse'
+          });
         }
+      });
 
-        // ───────────────────────────────────────────────────────────────
-        // 🌐 URL & Parameter Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverURLs() {
-            const elements = document.querySelectorAll(this.patterns.urls);
-            const urls = new Set();
+      // IndexedDB databases
+      try {
+        const databases = await indexedDB.databases();
+        databases.forEach(db => {
+          endpoints.push({
+            id: `idb_${db.name}_${Date.now()}`,
+            type: 'indexed_db',
+            name: db.name,
+            value: null,
+            location: 'indexedDB',
+            testable: false, // Requires async operations
+            injectionPoint: 'idb_store',
+            extractionMethod: 'indexed_db_api',
+            advanced: true
+          });
+        });
+      } catch (e) {
+        console.warn('[EndpointDiscovery] IndexedDB enumeration failed');
+      }
 
-            for (const el of elements) {
-                const url = el.href || el.src;
-                if (url && !url.startsWith('data:') && !url.startsWith('javascript:')) {
-                    urls.add(url);
-                    
-                    // Extract parameters
-                    this.extractParameters(url);
-                }
-            }
+      return endpoints;
+    },
 
-            this.scanResults.urls = Array.from(urls);
-            console.log(`[Discovery] Found ${urls.size} unique URLs`);
+    /**
+     * Discover messaging-based endpoints
+     */
+    discoverMessagingEndpoints: async (config) => {
+      const endpoints = [];
+
+      // postMessage listener detection
+      if (window.addEventListener.toString().includes('[native code]')) {
+        endpoints.push({
+          id: `postmessage_${Date.now()}`,
+          type: 'post_message',
+          name: 'window.postMessage',
+          value: null,
+          location: 'window',
+          testable: true,
+          injectionPoint: 'message_data',
+          extractionMethod: 'event_listener',
+          targetOrigin: '*'
+        });
+      }
+
+      // BroadcastChannel detection
+      if (typeof BroadcastChannel !== 'undefined') {
+        endpoints.push({
+          id: `broadcast_${Date.now()}`,
+          type: 'broadcast_channel',
+          name: 'BroadcastChannel',
+          value: null,
+          location: 'BroadcastChannel',
+          testable: true,
+          injectionPoint: 'message_data',
+          extractionMethod: 'broadcast_api'
+        });
+      }
+
+      // WebSocket detection (check for ws:// or wss:// in scripts)
+      const scripts = Array.from(document.scripts);
+      const hasWebSocket = scripts.some(script => 
+        script.textContent.includes('WebSocket') || 
+        script.textContent.includes('ws://') ||
+        script.textContent.includes('wss://')
+      );
+      
+      if (hasWebSocket) {
+        endpoints.push({
+          id: `websocket_${Date.now()}`,
+          type: 'web_socket',
+          name: 'WebSocket',
+          value: null,
+          location: 'WebSocket',
+          testable: false, // Requires active connection
+          injectionPoint: 'ws_message',
+          extractionMethod: 'code_analysis'
+        });
+      }
+
+      // Server-Sent Events
+      const hasSSE = scripts.some(script => 
+        script.textContent.includes('EventSource')
+      );
+      
+      if (hasSSE) {
+        endpoints.push({
+          id: `sse_${Date.now()}`,
+          type: 'sse',
+          name: 'Server-Sent Events',
+          value: null,
+          location: 'EventSource',
+          testable: false,
+          injectionPoint: 'sse_message',
+          extractionMethod: 'code_analysis'
+        });
+      }
+
+      return endpoints;
+    },
+
+    /**
+     * Discover advanced injection vectors
+     */
+    discoverAdvancedEndpoints: async (config) => {
+      const endpoints = [];
+
+      // SVG elements
+      document.querySelectorAll('svg').forEach((svg, idx) => {
+        endpoints.push({
+          id: `svg_${idx}_${Date.now()}`,
+          type: 'svg_injection',
+          name: `SVG_${idx}`,
+          value: svg.outerHTML.substring(0, 200),
+          element: svg,
+          location: svg.id || `nth:${idx}`,
+          testable: true,
+          injectionPoint: 'svg_content',
+          extractionMethod: 'dom_query'
+        });
+      });
+
+      // Inline styles (CSS injection)
+      document.querySelectorAll('[style]').forEach((elem, idx) => {
+        if (elem.getAttribute('style')) {
+          endpoints.push({
+            id: `css_inline_${idx}_${Date.now()}`,
+            type: 'css_injection',
+            name: `CSS_${idx}`,
+            value: elem.getAttribute('style'),
+            element: elem,
+            location: elem.id || elem.className,
+            testable: true,
+            injectionPoint: 'style_attribute',
+            extractionMethod: 'dom_query'
+          });
         }
+      });
 
-        // ───────────────────────────────────────────────────────────────
-        // 🔑 Parameter Extraction
-        // ───────────────────────────────────────────────────────────────
-        async discoverParameters() {
-            // From current URL
-            this.extractParameters(window.location.href);
-            
-            // From all links
-            const links = document.querySelectorAll('a[href]');
-            for (const link of links) {
-                this.extractParameters(link.href);
-            }
-
-            // From JavaScript code
-            this.extractParametersFromJS();
-
-            console.log(`[Discovery] Found ${this.scanResults.parameters.size} parameters`);
+      // JSONP callbacks
+      document.querySelectorAll('script[src*="callback="]').forEach((script, idx) => {
+        const src = script.src;
+        const callbackMatch = src.match(/callback=([^&]*)/);
+        if (callbackMatch) {
+          endpoints.push({
+            id: `jsonp_${idx}_${Date.now()}`,
+            type: 'jsonp_callback',
+            name: `JSONP_${callbackMatch[1]}`,
+            value: callbackMatch[1],
+            element: script,
+            scriptSrc: src,
+            location: src,
+            testable: true,
+            injectionPoint: 'callback_function',
+            extractionMethod: 'script_src_analysis'
+          });
         }
+      });
 
-        extractParameters(url) {
-            try {
-                const urlObj = new URL(url, window.location.origin);
-                urlObj.searchParams.forEach((value, key) => {
-                    this.scanResults.parameters.add({
-                        name: key,
-                        value: value,
-                        url: url,
-                        reflected: this.isParameterReflected(key, value)
-                    });
-                });
-            } catch (e) {
-                // Invalid URL
-            }
-        }
+      // Prototype pollution candidates
+      const hasJSONParse = scripts.some(script => 
+        script.textContent.includes('JSON.parse')
+      );
+      
+      if (hasJSONParse) {
+        endpoints.push({
+          id: `proto_pollution_${Date.now()}`,
+          type: 'prototype_pollution',
+          name: 'Prototype Pollution',
+          value: null,
+          location: 'JSON.parse',
+          testable: true,
+          injectionPoint: 'json_parse',
+          extractionMethod: 'code_analysis',
+          advanced: true
+        });
+      }
 
-        extractParametersFromJS() {
-            const scripts = document.querySelectorAll('script');
-            
-            for (const script of scripts) {
-                const matches = script.textContent.matchAll(this.patterns.params);
-                for (const match of matches) {
-                    this.scanResults.parameters.add({
-                        name: match[1],
-                        source: 'javascript',
-                        context: 'code'
-                    });
-                }
-            }
-        }
+      return endpoints;
+    },
 
-        // ───────────────────────────────────────────────────────────────
-        // 🔌 API Endpoint Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverAPIEndpoints() {
-            const endpoints = new Set();
+    /**
+     * Discover API and AJAX endpoints
+     */
+    discoverAPIEndpoints: async (config) => {
+      const endpoints = [];
 
-            // From fetch/XHR in scripts
-            const scripts = document.querySelectorAll('script');
-            for (const script of scripts) {
-                const content = script.textContent;
-                
-                // Find fetch calls
-                const fetchMatches = content.matchAll(/fetch\s*\(\s*['"`]([^'"`]+)['"`]/g);
-                for (const match of fetchMatches) {
-                    endpoints.add(match[1]);
-                }
+      // Hook XHR to detect AJAX endpoints
+      // This would need to be done earlier in page load
+      // For now, we'll just mark that API testing is available
+      
+      if (typeof XMLHttpRequest !== 'undefined') {
+        endpoints.push({
+          id: `xhr_generic_${Date.now()}`,
+          type: 'xhr_response',
+          name: 'XHR Responses',
+          value: null,
+          location: 'XMLHttpRequest',
+          testable: false, // Requires request interception
+          injectionPoint: 'xhr_response',
+          extractionMethod: 'xhr_hook',
+          advanced: true
+        });
+      }
 
-                // Find XHR open calls
-                const xhrMatches = content.matchAll(/\.open\s*\(\s*['"`](\w+)['"`]\s*,\s*['"`]([^'"`]+)['"`]/g);
-                for (const match of xhrMatches) {
-                    endpoints.add(match[2]);
-                }
+      // Fetch API
+      if (typeof fetch !== 'undefined') {
+        endpoints.push({
+          id: `fetch_generic_${Date.now()}`,
+          type: 'fetch_response',
+          name: 'Fetch Responses',
+          value: null,
+          location: 'fetch',
+          testable: false,
+          injectionPoint: 'fetch_response',
+          extractionMethod: 'fetch_hook',
+          advanced: true
+        });
+      }
 
-                // Find axios calls
-                const axiosMatches = content.matchAll(/axios\.[a-z]+\s*\(\s*['"`]([^'"`]+)['"`]/g);
-                for (const match of axiosMatches) {
-                    endpoints.add(match[1]);
-                }
-            }
+      return endpoints;
+    },
 
-            // From data-api attributes
-            const apiElements = document.querySelectorAll('[data-api], [data-url], [data-endpoint]');
-            for (const el of apiElements) {
-                const api = el.dataset.api || el.dataset.url || el.dataset.endpoint;
-                if (api) endpoints.add(api);
-            }
+    /**
+     * Discover template engine endpoints
+     */
+    discoverTemplateEndpoints: async (config) => {
+      const endpoints = [];
+      const scripts = Array.from(document.scripts);
+      const htmlContent = document.documentElement.innerHTML;
 
-            // Analyze each endpoint
-            for (const endpoint of endpoints) {
-                this.scanResults.apiEndpoints.push({
-                    url: endpoint,
-                    method: this.guessMethod(endpoint),
-                    isJSON: this.patterns.jsonEndpoints.test(endpoint),
-                    parameters: this.extractEndpointParams(endpoint)
-                });
-            }
+      // Angular.js
+      if (window.angular || htmlContent.includes('ng-') || htmlContent.includes('ng-app')) {
+        endpoints.push({
+          id: `angular_${Date.now()}`,
+          type: 'angular_template',
+          name: 'Angular Template',
+          value: null,
+          location: 'Angular.js',
+          testable: true,
+          injectionPoint: 'template_expression',
+          extractionMethod: 'framework_detection',
+          payloadExample: '{{constructor.constructor(\'alert(1)\')()}}'
+        });
+      }
 
-            console.log(`[Discovery] Found ${endpoints.size} API endpoints`);
-        }
+      // Vue.js
+      if (window.Vue || htmlContent.includes('v-') || htmlContent.includes('id="app"')) {
+        endpoints.push({
+          id: `vue_${Date.now()}`,
+          type: 'vue_template',
+          name: 'Vue Template',
+          value: null,
+          location: 'Vue.js',
+          testable: true,
+          injectionPoint: 'template_expression',
+          extractionMethod: 'framework_detection',
+          payloadExample: '{{_c.constructor(\'alert(1)\')()}}'
+        });
+      }
 
-        // ───────────────────────────────────────────────────────────────
-        // 🎪 Event Handler Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverEventHandlers() {
-            const handlers = [];
+      // React
+      if (window.React || htmlContent.includes('data-reactroot') || htmlContent.includes('data-reactid')) {
+        endpoints.push({
+          id: `react_${Date.now()}`,
+          type: 'react_props',
+          name: 'React Props',
+          value: null,
+          location: 'React',
+          testable: true,
+          injectionPoint: 'component_props',
+          extractionMethod: 'framework_detection'
+        });
+      }
 
-            // Inline handlers
-            const elements = document.querySelectorAll('*');
-            for (const el of elements) {
-                for (const attr of el.attributes) {
-                    if (attr.name.startsWith('on')) {
-                        handlers.push({
-                            element: el,
-                            event: attr.name,
-                            handler: attr.value,
-                            context: this.getElementContext(el),
-                            injectable: this.isHandlerInjectable(attr.value)
-                        });
-                    }
-                }
-            }
+      // Handlebars
+      if (window.Handlebars || scripts.some(s => s.textContent.includes('Handlebars'))) {
+        endpoints.push({
+          id: `handlebars_${Date.now()}`,
+          type: 'handlebars',
+          name: 'Handlebars Template',
+          value: null,
+          location: 'Handlebars',
+          testable: true,
+          injectionPoint: 'template_expression',
+          extractionMethod: 'framework_detection'
+        });
+      }
 
-            // Attached handlers via getEventListeners (if available)
-            if (typeof getEventListeners === 'function') {
-                for (const el of elements) {
-                    const listeners = getEventListeners(el);
-                    for (const [event, list] of Object.entries(listeners)) {
-                        for (const listener of list) {
-                            handlers.push({
-                                element: el,
-                                event: event,
-                                handler: listener.listener.toString(),
-                                context: this.getElementContext(el),
-                                useCapture: listener.useCapture
-                            });
-                        }
-                    }
-                }
-            }
+      return endpoints;
+    },
 
-            this.scanResults.eventHandlers = handlers;
-            console.log(`[Discovery] Found ${handlers.length} event handlers`);
-        }
+    /**
+     * Discover modern web API endpoints
+     */
+    discoverModernAPIs: async (config) => {
+      const endpoints = [];
 
-        // ───────────────────────────────────────────────────────────────
-        // 📨 PostMessage Channel Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverPostMessageChannels() {
-            const channels = [];
-            const scripts = document.querySelectorAll('script');
-
-            for (const script of scripts) {
-                const content = script.textContent;
-                
-                // Find postMessage senders
-                const senders = content.matchAll(/(\w+)\.postMessage\s*\(/g);
-                for (const match of senders) {
-                    channels.push({
-                        type: 'sender',
-                        target: match[1],
-                        context: 'discovered in script'
-                    });
-                }
-
-                // Find message listeners
-                if (content.includes('addEventListener') && content.includes('message')) {
-                    channels.push({
-                        type: 'listener',
-                        hasOriginCheck: /event\.origin/.test(content),
-                        vulnerable: !/event\.origin\s*[!=]==/.test(content)
-                    });
-                }
-            }
-
-            // Monitor for runtime postMessage
-            this.setupPostMessageMonitor();
-
-            this.scanResults.postMessageTargets = channels;
-            console.log(`[Discovery] Found ${channels.length} postMessage channels`);
-        }
-
-        setupPostMessageMonitor() {
-            window.addEventListener('message', (event) => {
-                this.framework.emit('postMessageDetected', {
-                    origin: event.origin,
-                    data: event.data,
-                    source: event.source
-                });
+      // Service Worker
+      if ('serviceWorker' in navigator) {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          registrations.forEach((reg, idx) => {
+            endpoints.push({
+              id: `sw_${idx}_${Date.now()}`,
+              type: 'service_worker',
+              name: `ServiceWorker_${idx}`,
+              value: reg.scope,
+              scope: reg.scope,
+              location: 'ServiceWorker',
+              testable: false,
+              injectionPoint: 'sw_message',
+              extractionMethod: 'sw_api'
             });
+          });
+        } catch (e) {}
+      }
+
+      // Web Workers
+      if (typeof Worker !== 'undefined') {
+        endpoints.push({
+          id: `worker_generic_${Date.now()}`,
+          type: 'web_worker',
+          name: 'Web Worker',
+          value: null,
+          location: 'Worker',
+          testable: false,
+          injectionPoint: 'worker_message',
+          extractionMethod: 'worker_api'
+        });
+      }
+
+      // Notification API
+      if ('Notification' in window) {
+        endpoints.push({
+          id: `notification_${Date.now()}`,
+          type: 'notification_api',
+          name: 'Notification API',
+          value: null,
+          location: 'Notification',
+          testable: true,
+          injectionPoint: 'notification_data',
+          extractionMethod: 'notification_api'
+        });
+      }
+
+      return endpoints;
+    },
+
+    /**
+     * Helper: Get element attributes
+     */
+    getElementAttributes: (elem) => {
+      const attrs = {};
+      Array.from(elem.attributes).forEach(attr => {
+        attrs[attr.name] = attr.value;
+      });
+      return attrs;
+    },
+
+    /**
+     * Helper: Get data attributes
+     */
+    getDataAttributes: (elem) => {
+      const dataAttrs = {};
+      Array.from(elem.attributes).forEach(attr => {
+        if (attr.name.startsWith('data-')) {
+          const key = attr.name.substring(5);
+          dataAttrs[key] = attr.value;
         }
+      });
+      return dataAttrs;
+    },
 
-        // ───────────────────────────────────────────────────────────────
-        // 🔄 Dynamic Content Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverDynamicContent() {
-            // Monitor DOM mutations
-            const observer = new MutationObserver((mutations) => {
-                for (const mutation of mutations) {
-                    if (mutation.type === 'childList') {
-                        mutation.addedNodes.forEach((node) => {
-                            if (node.nodeType === 1) { // Element node
-                                this.analyzeDynamicElement(node);
-                            }
-                        });
-                    }
-                }
-            });
+    /**
+     * Deduplicate endpoints based on unique identifiers
+     */
+    deduplicateEndpoints: (endpoints) => {
+      const seen = new Set();
+      const unique = [];
 
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['src', 'href', 'data-*']
-            });
-
-            // Store observer for cleanup
-            this.mutationObserver = observer;
+      endpoints.forEach(endpoint => {
+        const signature = `${endpoint.type}_${endpoint.name}_${endpoint.location}`;
+        
+        if (!seen.has(signature)) {
+          seen.add(signature);
+          unique.push(endpoint);
         }
+      });
 
-        analyzeDynamicElement(element) {
-            // Check if it contains injectable points
-            const inputs = element.querySelectorAll(this.patterns.inputs);
-            if (inputs.length > 0) {
-                this.framework.emit('dynamicInputsDetected', {
-                    count: inputs.length,
-                    parent: element
-                });
-            }
-        }
+      return unique;
+    },
 
-        // ───────────────────────────────────────────────────────────────
-        // 🔌 WebSocket Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverWebSockets() {
-            const originalWebSocket = window.WebSocket;
-            const wsConnections = [];
+    /**
+     * Enrich endpoints with additional metadata
+     */
+    enrichEndpoints: (endpoints, config) => {
+      return endpoints.map(endpoint => {
+        const typeInfo = EndpointDiscovery.ENDPOINT_TYPES[endpoint.type] || {};
+        
+        return {
+          ...endpoint,
+          category: typeInfo.category || 'UNKNOWN',
+          risk: endpoint.risk || typeInfo.risk || 'medium',
+          context: endpoint.context || typeInfo.context || 'html',
+          priority: EndpointDiscovery.calculatePriority(endpoint),
+          detectionMethods: EndpointDiscovery.getDetectionMethods(endpoint),
+          recommendedPayloads: EndpointDiscovery.getRecommendedPayloads(endpoint),
+          metadata: {
+            discovered: new Date().toISOString(),
+            url: window.location.href,
+            userAgent: navigator.userAgent
+          }
+        };
+      });
+    },
 
-            window.WebSocket = function(...args) {
-                const ws = new originalWebSocket(...args);
-                
-                wsConnections.push({
-                    url: args[0],
-                    protocols: args[1],
-                    timestamp: Date.now()
-                });
+    /**
+     * Calculate endpoint priority for testing
+     */
+    calculatePriority: (endpoint) => {
+      let priority = 50;
 
-                // Monitor messages
-                ws.addEventListener('message', (event) => {
-                    framework.emit('websocketMessage', {
-                        url: args[0],
-                        data: event.data
-                    });
-                });
+      // Risk-based priority
+      const riskScores = {
+        critical: 100,
+        high: 75,
+        medium: 50,
+        low: 25
+      };
+      priority = riskScores[endpoint.risk] || 50;
 
-                return ws;
-            };
+      // Context-based adjustments
+      if (endpoint.context === 'javascript') priority += 20;
+      if (endpoint.context === 'html') priority += 15;
+      if (endpoint.context === 'svg') priority += 10;
 
-            this.scanResults.websockets = wsConnections;
-        }
+      // Type-based adjustments
+      if (endpoint.type.includes('template')) priority += 25;
+      if (endpoint.type.includes('prototype')) priority += 20;
+      if (endpoint.type === 'jsonp_callback') priority += 15;
+      if (endpoint.type === 'post_message') priority += 15;
 
-        // ───────────────────────────────────────────────────────────────
-        // 💾 LocalStorage/SessionStorage Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverLocalStorage() {
-            const storage = {
-                localStorage: {},
-                sessionStorage: {},
-                cookies: {}
-            };
+      return Math.min(priority, 100);
+    },
 
-            // LocalStorage
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                storage.localStorage[key] = {
-                    value: localStorage.getItem(key),
-                    reflected: this.isValueReflected(localStorage.getItem(key))
-                };
-            }
+    /**
+     * Get appropriate detection methods for endpoint
+     */
+    getDetectionMethods: (endpoint) => {
+      const methods = ['dom_check'];
 
-            // SessionStorage
-            for (let i = 0; i < sessionStorage.length; i++) {
-                const key = sessionStorage.key(i);
-                storage.sessionStorage[key] = {
-                    value: sessionStorage.getItem(key),
-                    reflected: this.isValueReflected(sessionStorage.getItem(key))
-                };
-            }
+      // Context-specific detection
+      switch (endpoint.context) {
+        case 'javascript':
+          methods.push('popup_hook', 'console_hook', 'error_hook');
+          break;
+        case 'html':
+          methods.push('mutation_observer', 'attribute_monitor');
+          break;
+        case 'svg':
+          methods.push('script_execution', 'event_trigger');
+          break;
+        case 'css':
+          methods.push('style_leak', 'computed_style');
+          break;
+        case 'template':
+          methods.push('expression_evaluation', 'sandbox_escape');
+          break;
+      }
 
-            // Cookies
-            document.cookie.split(';').forEach(cookie => {
-                const [key, value] = cookie.trim().split('=');
-                storage.cookies[key] = {
-                    value: value,
-                    httpOnly: false, // Can't detect from JS
-                    secure: window.location.protocol === 'https:',
-                    reflected: this.isValueReflected(value)
-                };
-            });
+      // Storage endpoints
+      if (endpoint.category === 'STORAGE') {
+        methods.push('storage_read_hook', 'storage_event');
+      }
 
-            this.scanResults.storage = storage;
-        }
+      // Messaging endpoints
+      if (endpoint.category === 'MESSAGING') {
+        methods.push('message_hook', 'event_listener');
+      }
 
-        // ───────────────────────────────────────────────────────────────
-        // 🕵️ Deep Scan (Advanced Techniques)
-        // ───────────────────────────────────────────────────────────────
-        async deepScan() {
-            console.log('[Discovery] Running deep scan...');
+      return methods;
+    },
 
-            await Promise.all([
-                this.scanFrameworks(),
-                this.scanServiceWorkers(),
-                this.scanWebWorkers(),
-                this.scanShadowDOM(),
-                this.scanCustomElements()
-            ]);
-        }
+    /**
+     * Get recommended payload types for endpoint
+     */
+    getRecommendedPayloads: (endpoint) => {
+      const payloads = ['base'];
 
-        async scanFrameworks() {
-            const frameworks = {
-                react: !!document.querySelector('[data-reactroot], [data-reactid]'),
-                vue: !!window.Vue || !!document.querySelector('[data-v-]'),
-                angular: !!window.angular || !!document.querySelector('[ng-app], [ng-controller]'),
-                jquery: !!window.jQuery,
-                backbone: !!window.Backbone,
-                ember: !!window.Ember
-            };
+      // Context-specific payloads
+      switch (endpoint.context) {
+        case 'javascript':
+          payloads.push('javascript_context', 'polyglot');
+          break;
+        case 'html':
+          payloads.push('html_injection', 'tag_based');
+          break;
+        case 'svg':
+          payloads.push('svg_specific', 'xml_injection');
+          break;
+        case 'css':
+          payloads.push('css_injection', 'expression');
+          break;
+        case 'attribute':
+          payloads.push('attribute_breaking', 'event_handler');
+          break;
+        case 'url':
+          payloads.push('url_encoding', 'protocol_handler');
+          break;
+        case 'template':
+          payloads.push('template_expression', 'ssti');
+          break;
+      }
 
-            this.scanResults.frameworks = frameworks;
-        }
+      // Advanced techniques
+      if (endpoint.type === 'prototype_pollution') {
+        payloads.push('prototype_pollution');
+      }
+      if (endpoint.type.includes('dom_clobbering')) {
+        payloads.push('dom_clobbering');
+      }
+      if (endpoint.type === 'jsonp_callback') {
+        payloads.push('jsonp_specific');
+      }
 
-        async scanServiceWorkers() {
-            if ('serviceWorker' in navigator) {
-                const registrations = await navigator.serviceWorker.getRegistrations();
-                this.scanResults.serviceWorkers = registrations.map(reg => ({
-                    scope: reg.scope,
-                    active: !!reg.active,
-                    scriptURL: reg.active?.scriptURL
-                }));
-            }
-        }
+      // WAF bypass if enabled
+      if (endpoint.risk === 'critical' || endpoint.risk === 'high') {
+        payloads.push('waf_bypass');
+      }
 
-        async scanWebWorkers() {
-            // Intercept Worker creation
-            const originalWorker = window.Worker;
-            const workers = [];
+      // mXSS for innerHTML endpoints
+      if (endpoint.injectionPoint === 'inner_html') {
+        payloads.push('mutation_xss');
+      }
 
-            window.Worker = function(...args) {
-                workers.push({ scriptURL: args[0], timestamp: Date.now() });
-                return new originalWorker(...args);
-            };
+      return payloads;
+    },
 
-            this.scanResults.workers = workers;
-        }
+    /**
+     * Filter endpoints based on configuration
+     */
+    filterEndpoints: (endpoints, config) => {
+      let filtered = endpoints;
 
-        async scanShadowDOM() {
-            const shadowRoots = [];
-            const walker = document.createTreeWalker(
-                document.body,
-                NodeFilter.SHOW_ELEMENT
-            );
+      // Filter by target endpoints if specified
+      if (config.targetEndpoints && config.targetEndpoints.length > 0) {
+        filtered = filtered.filter(ep => 
+          config.targetEndpoints.some(target => 
+            ep.name.includes(target) || ep.type === target
+          )
+        );
+      }
 
-            let node;
-            while (node = walker.nextNode()) {
-                if (node.shadowRoot) {
-                    shadowRoots.push({
-                        host: node,
-                        mode: node.shadowRoot.mode,
-                        innerHTML: node.shadowRoot.innerHTML
-                    });
-                }
-            }
+      // Exclude specified endpoints
+      if (config.excludeEndpoints && config.excludeEndpoints.length > 0) {
+        filtered = filtered.filter(ep => 
+          !config.excludeEndpoints.some(exclude => 
+            ep.name.includes(exclude) || ep.type === exclude
+          )
+        );
+      }
 
-            this.scanResults.shadowRoots = shadowRoots;
-        }
+      // Filter by risk level
+      if (config.minRiskLevel) {
+        const riskOrder = ['low', 'medium', 'high', 'critical'];
+        const minIndex = riskOrder.indexOf(config.minRiskLevel);
+        filtered = filtered.filter(ep => 
+          riskOrder.indexOf(ep.risk) >= minIndex
+        );
+      }
 
-        async scanCustomElements() {
-            const customElements = [];
-            const allElements = document.querySelectorAll('*');
+      // Filter testable only
+      if (config.testableOnly !== false) {
+        filtered = filtered.filter(ep => ep.testable);
+      }
 
-            for (const el of allElements) {
-                if (el.tagName.includes('-')) {
-                    customElements.push({
-                        tagName: el.tagName.toLowerCase(),
-                        attributes: Array.from(el.attributes).map(a => ({
-                            name: a.name,
-                            value: a.value
-                        }))
-                    });
-                }
-            }
+      // Filter by category
+      if (config.categories && config.categories.length > 0) {
+        filtered = filtered.filter(ep => 
+          config.categories.includes(ep.category)
+        );
+      }
 
-            this.scanResults.customElements = customElements;
-        }
+      return filtered;
+    },
 
-        // ───────────────────────────────────────────────────────────────
-        // 🔧 Helper Methods
-        // ───────────────────────────────────────────────────────────────
-        detectInputContext(input) {
-            const parent = input.parentElement;
-            const contexts = [];
+    /**
+     * Get endpoint statistics
+     */
+    getStatistics: (endpoints) => {
+      const stats = {
+        total: endpoints.length,
+        testable: endpoints.filter(e => e.testable).length,
+        byCategory: {},
+        byRisk: {},
+        byContext: {},
+        byType: {},
+        highPriority: endpoints.filter(e => e.priority >= 75).length
+      };
 
-            // Check parent tags
-            if (parent.tagName === 'SCRIPT') contexts.push('javascript');
-            if (parent.tagName === 'STYLE') contexts.push('css');
-            if (parent.tagName === 'TEXTAREA') contexts.push('html');
-            if (parent.getAttribute('contenteditable')) contexts.push('html');
+      // Group by category
+      endpoints.forEach(ep => {
+        stats.byCategory[ep.category] = (stats.byCategory[ep.category] || 0) + 1;
+        stats.byRisk[ep.risk] = (stats.byRisk[ep.risk] || 0) + 1;
+        stats.byContext[ep.context] = (stats.byContext[ep.context] || 0) + 1;
+        stats.byType[ep.type] = (stats.byType[ep.type] || 0) + 1;
+      });
 
-            // Check for template contexts
-            if (input.textContent.includes('{{') || input.textContent.includes('${')) {
-                contexts.push('template');
-            }
+      return stats;
+    },
 
-            return contexts.length > 0 ? contexts : ['html'];
-        }
-
-        identifyNearestSinks(element) {
-            const sinks = [];
-            const dangerousSinks = ['innerHTML', 'outerHTML', 'document.write', 'eval'];
-            
-            // Check element's own properties
-            for (const sink of dangerousSinks) {
-                if (element[sink]) {
-                    sinks.push({ type: sink, element: element });
-                }
-            }
-
-            return sinks;
-        }
-
-        detectSanitization(input) {
-            const parent = input.parentElement;
-            const scripts = document.querySelectorAll('script');
-            
-            for (const script of scripts) {
-                const content = script.textContent;
-                if (content.includes(input.name) || content.includes(input.id)) {
-                    // Check for sanitization functions
-                    if (/DOMPurify|sanitize|escape|encode/.test(content)) {
-                        return {
-                            detected: true,
-                            method: content.match(/DOMPurify|sanitize|escape|encode/)?.[0]
-                        };
-                    }
-                }
-            }
-
-            return { detected: false };
-        }
-
-        extractEventListeners(element) {
-            const listeners = [];
-            
-            for (const attr of element.attributes) {
-                if (attr.name.startsWith('on')) {
-                    listeners.push({
-                        event: attr.name.substring(2),
-                        handler: attr.value,
-                        inline: true
-                    });
-                }
-            }
-
-            return listeners;
-        }
-
-        extractDataAttributes(element) {
-            const dataAttrs = {};
-            
-            for (const attr of element.attributes) {
-                if (attr.name.startsWith('data-')) {
-                    dataAttrs[attr.name] = attr.value;
-                }
-            }
-
-            return dataAttrs;
-        }
-
-        findReflections(value) {
-            if (!value) return [];
-            
-            const reflections = [];
-            const bodyText = document.body.innerHTML;
-            
-            if (bodyText.includes(value)) {
-                // Find all occurrences
-                const regex = new RegExp(this.escapeRegex(value), 'g');
-                let match;
-                while ((match = regex.exec(bodyText)) !== null) {
-                    reflections.push({
-                        position: match.index,
-                        context: bodyText.substring(
-                            Math.max(0, match.index - 50),
-                            Math.min(bodyText.length, match.index + value.length + 50)
-                        )
-                    });
-                }
-            }
-
-            return reflections;
-        }
-
-        isParameterReflected(key, value) {
-            const bodyHTML = document.body.innerHTML;
-            return bodyHTML.includes(value);
-        }
-
-        isValueReflected(value) {
-            if (!value || value.length < 3) return false;
-            return document.body.innerHTML.includes(value);
-        }
-
-        isHandlerInjectable(handlerCode) {
-            // Check if handler uses eval or similar dangerous functions
-            return /eval|Function|setTimeout|setInterval/.test(handlerCode);
-        }
-
-        guessMethod(endpoint) {
-            if (endpoint.includes('/api/') || endpoint.includes('.json')) {
-                return endpoint.includes('delete') ? 'DELETE' :
-                       endpoint.includes('update') || endpoint.includes('edit') ? 'PUT' :
-                       endpoint.includes('create') || endpoint.includes('add') ? 'POST' : 'GET';
-            }
-            return 'GET';
-        }
-
-        extractEndpointParams(endpoint) {
-            const params = [];
-            const matches = endpoint.matchAll(/[?&]([^=]+)=/g);
-            for (const match of matches) {
-                params.push(match[1]);
-            }
-            return params;
-        }
-
-        analyzeFormSecurity(form) {
-            return {
-                hasCSRFToken: !!form.querySelector('[name*="csrf"], [name*="token"]'),
-                usesHTTPS: form.action.startsWith('https://'),
-                hasHoneypot: !!form.querySelector('[style*="display:none"], [type="hidden"]'),
-                hasCaptcha: !!form.querySelector('[class*="captcha"], [class*="recaptcha"]')
-            };
-        }
-
-        detectValidation(input) {
-            return {
-                clientSide: !!(input.pattern || input.maxLength || input.required),
-                pattern: input.pattern || null,
-                maxLength: input.maxLength || null,
-                min: input.min || null,
-                max: input.max || null
-            };
-        }
-
-        getElementContext(element) {
-            const path = [];
-            let current = element;
-            
-            while (current && current !== document.body) {
-                let selector = current.tagName.toLowerCase();
-                if (current.id) selector += `#${current.id}`;
-                else if (current.className) {
-                    selector += `.${Array.from(current.classList).join('.')}`;
-                }
-                path.unshift(selector);
-                current = current.parentElement;
-            }
-            
-            return path.join(' > ');
-        }
-
-        generateId(prefix) {
-            return `${prefix}_${Math.random().toString(36).substr(2, 9)}`;
-        }
-
-        escapeRegex(str) {
-            return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 📊 Generate Summary
-        // ───────────────────────────────────────────────────────────────
-        generateSummary(duration) {
-            return {
-                duration: Math.round(duration),
-                forms: this.scanResults.forms.length,
-                inputs: this.scanResults.inputs.length,
-                urls: this.scanResults.urls.length,
-                parameters: this.scanResults.parameters.size,
-                apiEndpoints: this.scanResults.apiEndpoints.length,
-                eventHandlers: this.scanResults.eventHandlers.length,
-                postMessageChannels: this.scanResults.postMessageTargets.length,
-                timestamp: new Date().toISOString()
-            };
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🧹 Cleanup
-        // ───────────────────────────────────────────────────────────────
-        cleanup() {
-            if (this.mutationObserver) {
-                this.mutationObserver.disconnect();
-            }
-        }
+    /**
+     * Generate endpoint report
+     */
+    generateReport: (endpoints) => {
+      const stats = EndpointDiscovery.getStatistics(endpoints);
+      
+      return {
+        summary: {
+          totalEndpoints: stats.total,
+          testableEndpoints: stats.testable,
+          highPriorityEndpoints: stats.highPriority,
+          categoryCoverage: Object.keys(stats.byCategory).length,
+          riskDistribution: stats.byRisk
+        },
+        details: {
+          byCategory: stats.byCategory,
+          byRisk: stats.byRisk,
+          byContext: stats.byContext,
+          byType: stats.byType
+        },
+        endpoints: endpoints.map(ep => ({
+          id: ep.id,
+          name: ep.name,
+          type: ep.type,
+          category: ep.category,
+          risk: ep.risk,
+          priority: ep.priority,
+          testable: ep.testable,
+          location: ep.location
+        })),
+        timestamp: new Date().toISOString(),
+        url: window.location.href
+      };
     }
+  };
 
-    // Export
-    exports.EndpointDiscovery = EndpointDiscovery;
-    exports.create = (framework) => new EndpointDiscovery(framework);
-})();
+  // Export the module
+  exports.discover = EndpointDiscovery.discover;
+  exports.getStatistics = EndpointDiscovery.getStatistics;
+  exports.generateReport = EndpointDiscovery.generateReport;
+  exports.ENDPOINT_TYPES = EndpointDiscovery.ENDPOINT_TYPES;
+  exports.CATEGORIES = EndpointDiscovery.CATEGORIES;
+
+})(exports, FRAMEWORK, GM_getValue, GM_setValue, GM_deleteValue, GM_notification, unsafeWindow);
