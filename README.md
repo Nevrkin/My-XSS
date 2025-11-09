@@ -201,6 +201,15 @@ For issues, questions, or feature requests:
 - Check existing issues and documentation
 - Contact the maintainers
 
+## 📋 Recent Fixes
+
+### v8.0.1 - Module Loading Fixes
+- **Fixed Path Mapping**: Corrected UI module loading paths (`ui/` directory)
+- **Added Fallback Methods**: Dashboard toggle method with multiple fallback options
+- **Error Handling**: Improved error handling for 404 module loading
+- **Corrupted Files**: Fixed corrupted `ui/styles.js` file
+- **Enhanced Reliability**: Added simple dashboard fallback for module loading failures
+
 ---
 
 **⚠️ Important**: This tool should only be used on websites you own or have explicit permission to test. Unauthorized testing may violate laws and terms of service.
