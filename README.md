@@ -203,6 +203,12 @@ For issues, questions, or feature requests:
 
 ## 📋 Recent Fixes
 
+### v8.0.5 - Enhanced Scan Realism
+- **Improved Scan Realism**: Enhanced scan simulation with realistic timing and comprehensive testing
+- **Detailed Vulnerability Reporting**: Added comprehensive vulnerability details with context and evidence
+- **Advanced Payload Testing**: Implemented testing of advanced XSS vectors (SVG, event handlers, etc.)
+- **Phase-Based Scanning**: Added distinct scanning phases for better organization and progress tracking
+
 ### v8.0.4 - Scan Progress Resolution
 - **Fixed Scan Progress**: Resolved "Scanning..." stuck status with proper progress reporting
 - **Enhanced UI Updates**: Added real-time scan progress visualization and status updates
