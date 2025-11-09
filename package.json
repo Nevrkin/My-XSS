@@ -1,0 +1,39 @@
+{
+  "name": "elite-xss-framework",
+  "version": "8.0.0",
+  "description": "Advanced XSS Testing Framework - Top 0.1% Techniques",
+  "main": "main.js",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "test": "node test.js",
+    "lint": "eslint . --ext .js",
+    "package": "node package.js"
+  },
+  "keywords": [
+    "xss",
+    "security",
+    "penetration-testing",
+    "vulnerability-scanning",
+    "tampermonkey"
+  ],
+  "author": "Elite Security Research Team",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "uglify-js": "^3.14.0",
+    "jszip": "^3.7.0"
+  },
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-repo/elite-xss-framework.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-repo/elite-xss-framework/issues"
+  },
+  "homepage": "https://github.com/your-repo/elite-xss-framework#readme"
+}
