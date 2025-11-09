@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.2] - 2025-11-10
+
+### Fixed
+- **Orchestrator Method Issues**: Resolved `TypeError: orchestrator.startScan is not a function` by correcting method calls
+- **Dashboard Scan Functionality**: Fixed dashboard to use framework's `startScan` method instead of orchestrator module directly
+- **Quick Test Implementation**: Enhanced quick test implementation with proper orchestrator initialization
+- **Module Method Detection**: Improved detection of available methods in loaded modules
+
+### Changed
+- **Dashboard Integration**: Updated dashboard to properly interface with framework methods
+- **Orchestrator Usage**: Corrected orchestrator usage patterns with proper dependency injection
+- **Error Handling**: Enhanced error handling for module method calls
+
+### Added
+- **Framework Method Validation**: Added validation for available framework methods before calling them
+- **Better Debug Information**: Improved error messages and debugging information for module issues
+
 ## [8.0.1] - 2025-11-10
 
 ### Fixed
