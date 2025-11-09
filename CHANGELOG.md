@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.4] - 2025-11-10
+
+### Fixed
+- **Scan Progress Issues**: Resolved "Scanning..." stuck status with proper progress reporting
+- **Scan Completion**: Implemented proper scan completion handling with results reporting
+- **UI Updates**: Enhanced UI with real-time scan progress updates and status changes
+- **Event Handling**: Added comprehensive event handling for scan lifecycle events
+
+### Changed
+- **Scan Implementation**: Updated scan implementation with proper progress tracking
+- **Dashboard Updates**: Enhanced dashboard with real-time scan progress visualization
+- **Results Display**: Improved results display with proper formatting and categorization
+- **Error Handling**: Enhanced error handling with better user feedback
+
+### Added
+- **Scan Progress Events**: Added `scanStarted`, `scanProgress`, `scanCompleted`, and `scanError` events
+- **Progress Visualization**: Added progress bar and status updates during scanning
+- **Results Presentation**: Added proper results presentation with severity categorization
+- **Demo Implementation**: Added demo scan implementation for testing purposes
+
 ## [8.0.3] - 2025-11-10
 
 ### Fixed
