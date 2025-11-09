@@ -283,15 +283,17 @@
         
         // Initialize logger
         if (utils.logger) {
-          window.EliteLogger = utils.logger;
-          EliteLogger.init();
+          window.EliteLogger = typeof utils.logger.create === 'function' ? 
+            utils.logger.create(FRAMEWORK) : 
+            (typeof utils.logger.Logger === 'function' ? new utils.logger.Logger(FRAMEWORK) : utils.logger);
           EliteLogger.success('Logger initialized');
         }
         
         // Initialize storage
         if (utils.storage) {
-          window.EliteStorage = utils.storage;
-          EliteStorage.init();
+          window.EliteStorage = typeof utils.storage.create === 'function' ? 
+            utils.storage.create() : 
+            (typeof utils.storage.Storage === 'function' ? new utils.storage.Storage() : utils.storage);
           EliteLogger?.success('Storage system initialized');
         }
         
@@ -342,23 +344,21 @@
         // Initialize other UI components
         if (ui.settingsPanel) {
           window.EliteSettings = ui.settingsPanel;
-          await EliteSettings.init();
         }
         
         if (ui.resultsViewer) {
           window.EliteResults = ui.resultsViewer;
-          await EliteResults.init();
         }
         
         if (ui.liveMonitor) {
           window.EliteMonitor = ui.liveMonitor;
-          await EliteMonitor.init();
         }
         
         // Stage 5: Initialize sync system
         if (utils.sync) {
-          window.EliteSync = utils.sync;
-          EliteSync.init();
+          window.EliteSync = typeof utils.sync.create === 'function' ? 
+            utils.sync.create(FRAMEWORK) : 
+            (typeof utils.sync.Sync === 'function' ? new utils.sync.Sync(FRAMEWORK) : utils.sync);
           EliteLogger?.success('Multi-tab sync initialized');
         }
         
