@@ -7,18 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- New payload categories for modern frameworks
-- Enhanced blind XSS detection capabilities
-- Improved WAF bypass techniques
-
-### Changed
-- Updated UI components for better performance
-- Refactored core modules for modularity
+## [8.0.1] - 2025-11-10
 
 ### Fixed
-- Minor bug fixes in payload generation
-- UI rendering issues in specific browsers
+- **Module Path Mapping**: Corrected UI module loading paths to properly map `ui/` directory
+- **404 Error Resolution**: Fixed loader configuration to prevent HTTP 404 errors when loading modules
+- **Dashboard Toggle Method**: Added fallback methods for dashboard toggle functionality
+- **Corrupted Files**: Fixed corrupted `ui/styles.js` file with proper CSS styles
+- **Error Handling**: Improved error handling for module loading failures
+- **Fallback Dashboard**: Added simple dashboard fallback when modules fail to load
+
+### Changed
+- **Loader Configuration**: Updated module path resolution logic
+- **Dashboard Initialization**: Enhanced dashboard initialization with multiple fallback methods
+- **README Documentation**: Updated documentation to reflect recent fixes
+
+### Added
+- **Enhanced Reliability**: Added robust error handling and fallback mechanisms
+- **Better User Experience**: Improved error messages and user feedback
 
 ## [8.0.0] - 2025-11-09
 
@@ -67,18 +73,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dependency on external libraries
 - Complex initialization sequences
 - Unnecessary permissions
-
-## [7.0.0] - 2024-05-15
-
-### Added
-- Initial release with core XSS testing capabilities
-- Basic payload library
-- Simple dashboard interface
-- Fundamental detection mechanisms
-
-## [1.0.0] - 2023-01-20
-
-### Added
-- Project inception
-- Basic framework structure
-- Initial module system
