@@ -203,6 +203,12 @@ For issues, questions, or feature requests:
 
 ## 📋 Recent Fixes
 
+### v8.0.4 - Scan Progress Resolution
+- **Fixed Scan Progress**: Resolved "Scanning..." stuck status with proper progress reporting
+- **Enhanced UI Updates**: Added real-time scan progress visualization and status updates
+- **Scan Completion**: Implemented proper scan completion handling with results reporting
+- **Event Handling**: Added comprehensive event handling for scan lifecycle events
+
 ### v8.0.3 - Orchestrator startScan Method Resolution
 - **Fixed Missing Method**: Added missing `startScan` method to orchestrator module
 - **Enhanced Error Handling**: Improved dashboard error handling with better fallback mechanisms
@@ -220,8 +226,4 @@ For issues, questions, or feature requests:
 - **Added Fallback Methods**: Dashboard toggle method with multiple fallback options
 - **Error Handling**: Improved error handling for 404 module loading
 - **Corrupted Files**: Fixed corrupted `ui/styles.js` file
-- **Enhanced Reliability**: Added simple dashboard fallback for module loading failures
-
----
-
-**⚠️ Important**: This tool should only be used on websites you own or have explicit permission to test. Unauthorized testing may violate laws and terms of service.
+- **Enhanced Reliability**: Added robust error handling and fallback mechanisms
