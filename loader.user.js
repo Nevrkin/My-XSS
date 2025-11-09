@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Elite XSS Testing Framework v8.0
 // @namespace    http://tampermonkey.net/
-// @version      8.0.0
+// @version      8.0.1
 // @description  Advanced XSS Testing Framework - Top 0.1% Techniques
 // @author       Elite Security Research Team
 // @match        *://*/*
@@ -26,7 +26,7 @@
     // 🔧 Configuration
     // ═══════════════════════════════════════════════════════════════════
     const CONFIG = {
-        version: '8.0.0',
+        version: '8.0.1',
         baseUrl: 'https://raw.githubusercontent.com/Nevrkin/My-XSS/main/',
         cacheExpiry: 3600000, // 1 hour
         devMode: false,
@@ -61,6 +61,7 @@
                 testingMode: 'manual',
                 permissions: this.checkPermissions()
             };
+            this.uiComponents = {}; // Store loaded UI components
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -145,11 +146,11 @@
                         if (response.status === 200) {
                             resolve(response.responseText);
                         } else {
-                            reject(new Error(`HTTP ${response.status}`));
+                            reject(new Error(`HTTP ${response.status} for ${url}`));
                         }
                     },
                     onerror: reject,
-                    ontimeout: () => reject(new Error('Timeout'))
+                    ontimeout: () => reject(new Error(`Timeout for ${url}`))
                 });
             });
         }
@@ -287,7 +288,8 @@
         // ⌨️ Keyboard Shortcuts
         // ───────────────────────────────────────────────────────────────
         setupShortcuts() {
-            document.addEventListener('keydown', (e) => {
+            // Use a more robust event listener to avoid conflicts
+            const handleKeyDown = (e) => {
                 // Ctrl+Shift+X - Toggle Dashboard
                 if (e.ctrlKey && e.shiftKey && e.key === 'X') {
                     e.preventDefault();
@@ -305,7 +307,16 @@
                     e.preventDefault();
                     this.toggleSafeMode();
                 }
-            });
+            };
+
+            // Add event listener with error handling
+            try {
+                document.addEventListener('keydown', handleKeyDown, true);
+            } catch (error) {
+                console.warn('[Elite XSS] Could not add keydown listener:', error);
+                // Fallback to window listener
+                window.addEventListener('keydown', handleKeyDown, true);
+            }
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -338,15 +349,57 @@
         // ───────────────────────────────────────────────────────────────
         async toggleDashboard() {
             try {
-                const dashboard = await this.loadModule('ui', 'dashboard');
-                if (dashboard && typeof dashboard.toggle === 'function') {
-                    dashboard.toggle();
-                } else if (dashboard && typeof dashboard.show === 'function') {
-                    dashboard.show();
-                } else if (dashboard && typeof dashboard.render === 'function') {
-                    dashboard.render();
+                // Try to get existing dashboard first
+                if (this.uiComponents.dashboard) {
+                    if (typeof this.uiComponents.dashboard.toggle === 'function') {
+                        this.uiComponents.dashboard.toggle();
+                        return;
+                    } else if (typeof this.uiComponents.dashboard.show === 'function') {
+                        this.uiComponents.dashboard.show();
+                        return;
+                    } else if (typeof this.uiComponents.dashboard.render === 'function') {
+                        this.uiComponents.dashboard.render();
+                        return;
+                    }
+                }
+
+                // Load dashboard module
+                const dashboardModule = await this.loadModule('ui', 'dashboard');
+                
+                // Handle different export formats
+                let dashboardInstance;
+                if (dashboardModule && typeof dashboardModule.create === 'function') {
+                    dashboardInstance = dashboardModule.create(this);
+                } else if (dashboardModule && typeof dashboardModule.Dashboard === 'function') {
+                    dashboardInstance = new dashboardModule.Dashboard(this);
+                } else if (typeof window.DashboardUI === 'function') {
+                    dashboardInstance = new window.DashboardUI();
+                }
+                
+                if (dashboardInstance) {
+                    // Initialize if needed
+                    if (typeof dashboardInstance.init === 'function') {
+                        dashboardInstance.init();
+                    }
+                    
+                    // Try different show methods
+                    if (typeof dashboardInstance.toggle === 'function') {
+                        dashboardInstance.toggle();
+                    } else if (typeof dashboardInstance.show === 'function') {
+                        dashboardInstance.show();
+                    } else if (typeof dashboardInstance.render === 'function') {
+                        dashboardInstance.render();
+                    } else {
+                        console.log('[Elite XSS] Dashboard loaded but no display method found');
+                        this.createSimpleDashboard();
+                        return;
+                    }
+                    
+                    // Store reference
+                    this.uiComponents.dashboard = dashboardInstance;
                 } else {
-                    console.log('[Elite XSS] Dashboard module loaded but no toggle method found');
+                    console.log('[Elite XSS] Dashboard module loaded but no instance created');
+                    this.createSimpleDashboard();
                 }
             } catch (error) {
                 console.error('[Elite XSS] Failed to load dashboard:', error);
@@ -357,11 +410,35 @@
 
         async quickTest() {
             try {
-                const orchestrator = await this.loadModule('core', 'orchestrator');
-                if (orchestrator && typeof orchestrator.runQuickTest === 'function') {
-                    orchestrator.runQuickTest();
+                // Load orchestrator module
+                const orchestratorModule = await this.loadModule('core', 'orchestrator');
+                
+                // Handle different export formats
+                let orchestratorInstance;
+                if (orchestratorModule && typeof orchestratorModule.create === 'function') {
+                    orchestratorInstance = orchestratorModule.create(this);
+                } else if (orchestratorModule && typeof orchestratorModule.XSSOrchestrator === 'function') {
+                    orchestratorInstance = new orchestratorModule.XSSOrchestrator();
+                } else if (typeof window.XSSOrchestrator === 'function') {
+                    orchestratorInstance = new window.XSSOrchestrator();
+                }
+                
+                if (orchestratorInstance) {
+                    // Try different test methods
+                    if (typeof orchestratorInstance.runQuickTest === 'function') {
+                        orchestratorInstance.runQuickTest();
+                    } else if (typeof orchestratorInstance.quickScan === 'function') {
+                        orchestratorInstance.quickScan();
+                    } else if (typeof orchestratorInstance.startScan === 'function') {
+                        orchestratorInstance.startScan({
+                            url: window.location.href,
+                            mode: 'quick'
+                        });
+                    } else {
+                        console.log('[Elite XSS] Quick test not available in orchestrator');
+                    }
                 } else {
-                    console.log('[Elite XSS] Quick test not available');
+                    console.log('[Elite XSS] Orchestrator module loaded but no instance created');
                 }
             } catch (error) {
                 console.error('[Elite XSS] Failed to run quick test:', error);
@@ -387,7 +464,7 @@
             if (isFirstRun) {
                 GM_setValue('initialized', true);
                 GM_notification({
-                    title: '🎯 Elite XSS Framework v8.0',
+                    title: '🎯 Elite XSS Framework v8.0.1',
                     text: 'Press Ctrl+Shift+X to open dashboard\nAuthorized testing only!',
                     timeout: 5000
                 });
@@ -423,15 +500,20 @@
                 transition: transform 0.3s ease;
             `;
 
-            indicator.addEventListener('mouseenter', () => {
-                indicator.style.transform = 'scale(1.1)';
-            });
+            // Use more robust event listeners
+            try {
+                indicator.addEventListener('mouseenter', () => {
+                    indicator.style.transform = 'scale(1.1)';
+                });
 
-            indicator.addEventListener('mouseleave', () => {
-                indicator.style.transform = 'scale(1)';
-            });
+                indicator.addEventListener('mouseleave', () => {
+                    indicator.style.transform = 'scale(1)';
+                });
 
-            indicator.addEventListener('click', () => this.toggleDashboard());
+                indicator.addEventListener('click', () => this.toggleDashboard());
+            } catch (error) {
+                console.warn('[Elite XSS] Could not add indicator event listeners:', error);
+            }
 
             document.body.appendChild(indicator);
         }
@@ -440,22 +522,26 @@
         // 🔄 Event System Initialization
         // ───────────────────────────────────────────────────────────────
         initializeEventSystem() {
-            // Cross-tab communication
-            const bc = new BroadcastChannel('elite-xss-sync');
+            try {
+                // Cross-tab communication
+                const bc = new BroadcastChannel('elite-xss-sync');
 
-            bc.onmessage = (event) => {
-                this.emit('sync', event.data);
-            };
+                bc.onmessage = (event) => {
+                    this.emit('sync', event.data);
+                };
 
-            this.broadcast = (data) => {
-                bc.postMessage(data);
-            };
+                this.broadcast = (data) => {
+                    bc.postMessage(data);
+                };
 
-            // Cleanup on unload
-            window.addEventListener('beforeunload', () => {
-                bc.close();
-                this.emit('frameworkUnload');
-            });
+                // Cleanup on unload
+                window.addEventListener('beforeunload', () => {
+                    bc.close();
+                    this.emit('frameworkUnload');
+                });
+            } catch (error) {
+                console.warn('[Elite XSS] BroadcastChannel not supported:', error);
+            }
         }
 
         // ───────────────────────────────────────────────────────────────
@@ -500,13 +586,13 @@
             dashboard.innerHTML = `
                 <div style="padding: 15px; border-bottom: 1px solid #333;">
                     <h2 style="margin: 0; color: #4caf50;">Elite XSS Framework</h2>
-                    <p style="margin: 5px 0 0 0; color: #aaa;">v8.0.0 - Manual Dashboard</p>
+                    <p style="margin: 5px 0 0 0; color: #aaa;">v8.0.1 - Manual Dashboard</p>
                 </div>
                 <div style="padding: 15px;">
                     <div style="margin-bottom: 15px;">
                         <h3 style="color: #4caf50; margin-top: 0;">Framework Status</h3>
                         <p>✅ Core modules loaded</p>
-                        <p>⚠️ UI modules failed to load (404 errors)</p>
+                        <p>⚠️ UI modules had loading issues</p>
                         <p>🔧 Using fallback dashboard</p>
                     </div>
                     <div style="margin-bottom: 15px;">
