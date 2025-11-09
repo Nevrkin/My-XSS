@@ -294,7 +294,7 @@
         // ───────────────────────────────────────────────────────────────
         async startScan() {
             const config = this.getScanConfig();
-            this.updateStatus('scanning', 'Scanning...');
+            this.updateStatus('scanning', 'Initializing scan...');
 
             try {
                 // Use the framework's startScan method directly
