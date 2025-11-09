@@ -1,653 +1,410 @@
 /**
  * @file styles.js
- * @description Consolidated UI styles
- * @version 8# 🎯 Elite XSS Framework - Modules, UI & Utils
-
-## 📦 MODULES (6 Files)
-
-### 1️⃣ **modules/endpoint-discovery.js**
-
-```javascript
-/**
- * @file endpoint-discovery.js
- * @description Advanced endpoint and attack surface discovery
+ * @description Consolidated UI styles for Elite XSS Framework
  * @version 8.0.0
  */
 
 (function() {
     'use strict';
 
-    class EndpointDiscovery {
-        constructor(framework) {
-            this.framework = framework;
-            this.discovered = new Map();
-            this.scanDepth = 3;
-            this.config = {
-                scanForms: true,
-                scanInputs: true,
-                scanAjax: true,
-                scanWebSocket: true,
-                scanPostMessage: true,
-                scanDOM: true,
-                scanURLParams: true,
-                scanCookies: true,
-                scanLocalStorage: true,
-                scanHeaders: true,
-                maxDepth: 5,
-                followRedirects: true,
-                timeout: 15000
-            };
+    class UIStyles {
+        constructor() {
+            this.injected = false;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 🎯 Main Discovery Entry Point
+        // 🎨 Inject Styles
         // ═══════════════════════════════════════════════════════════════
-        async discoverAll() {
-            console.log('[Discovery] Starting comprehensive scan...');
-            
-            const results = {
-                forms: [],
-                inputs: [],
-                ajax: [],
-                websockets: [],
-                postMessage: [],
-                domSinks: [],
-                urlParams: [],
-                cookies: [],
-                storage: [],
-                headers: [],
-                timestamp: new Date().toISOString()
-            };
+        inject() {
+            if (this.injected) return;
 
-            // Parallel discovery
-            await Promise.allSettled([
-                this.config.scanForms && this.discoverForms().then(r => results.forms = r),
-                this.config.scanInputs && this.discoverInputs().then(r => results.inputs = r),
-                this.config.scanAjax && this.discoverAjaxEndpoints().then(r => results.ajax = r),
-                this.config.scanWebSocket && this.discoverWebSockets().then(r => results.websockets = r),
-                this.config.scanPostMessage && this.discoverPostMessage().then(r => results.postMessage = r),
-                this.config.scanDOM && this.discoverDOMSinks().then(r => results.domSinks = r),
-                this.config.scanURLParams && this.discoverURLParams().then(r => results.urlParams = r),
-                this.config.scanCookies && this.discoverCookies().then(r => results.cookies = r),
-                this.config.scanLocalStorage && this.discoverStorage().then(r => results.storage = r),
-                this.config.scanHeaders && this.discoverHeaders().then(r => results.headers = r)
-            ]);
+            const style = document.createElement('style');
+            style.id = 'elite-xss-styles';
+            style.textContent = this.getCSS();
 
-            // Store results
-            this.discovered.set('scan_' + Date.now(), results);
-            
-            this.framework.emit('discoveryComplete', results);
-            
-            console.log('[Discovery] ✅ Scan complete:', this.getSummary(results));
-            return results;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 📝 Form Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverForms() {
-            const forms = [];
-            const formElements = document.querySelectorAll('form');
-
-            for (const form of formElements) {
-                const formData = {
-                    id: form.id || `form_${forms.length}`,
-                    name: form.name,
-                    action: form.action || window.location.href,
-                    method: form.method?.toUpperCase() || 'GET',
-                    enctype: form.enctype,
-                    target: form.target,
-                    inputs: [],
-                    hasFileUpload: false,
-                    hasHiddenFields: false,
-                    csrfToken: null,
-                    vulnerability: {
-                        noCSRF: true,
-                        autoComplete: form.autocomplete !== 'off',
-                        targetBlank: form.target === '_blank'
-                    },
-                    xpath: this.getXPath(form)
-                };
-
-                // Analyze inputs
-                const inputs = form.querySelectorAll('input, textarea, select');
-                for (const input of inputs) {
-                    const inputData = this.analyzeInput(input);
-                    formData.inputs.push(inputData);
-                    
-                    if (input.type === 'file') formData.hasFileUpload = true;
-                    if (input.type === 'hidden') formData.hasHiddenFields = true;
-                    if (input.name?.match(/csrf|token|nonce/i)) formData.csrfToken = input.value;
-                }
-
-                formData.vulnerability.noCSRF = !formData.csrfToken && formData.method === 'POST';
-                forms.push(formData);
-            }
-
-            return forms;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🔤 Input Discovery & Analysis
-        // ───────────────────────────────────────────────────────────────
-        async discoverInputs() {
-            const inputs = [];
-            const inputElements = document.querySelectorAll('input, textarea, select, [contenteditable="true"]');
-
-            for (const input of inputElements) {
-                inputs.push(this.analyzeInput(input));
-            }
-
-            return inputs;
-        }
-
-        analyzeInput(input) {
-            const inputData = {
-                id: input.id || `input_${Math.random().toString(36).substr(2, 9)}`,
-                name: input.name,
-                type: input.type || input.tagName.toLowerCase(),
-                value: input.value,
-                placeholder: input.placeholder,
-                maxLength: input.maxLength,
-                pattern: input.pattern,
-                required: input.required,
-                disabled: input.disabled,
-                readonly: input.readOnly,
-                contentEditable: input.contentEditable === 'true',
-                vulnerability: {
-                    noValidation: !input.pattern && !input.maxLength,
-                    dangerousType: ['text', 'search', 'url', 'tel', 'email'].includes(input.type),
-                    noSanitization: true, // Assumed until proven otherwise
-                    reflected: this.checkReflection(input)
-                },
-                context: this.getInputContext(input),
-                xpath: this.getXPath(input),
-                attributes: this.getAttributes(input)
-            };
-
-            return inputData;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🌐 AJAX Endpoint Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverAjaxEndpoints() {
-            const endpoints = new Set();
-            const ajaxData = [];
-
-            // Hook fetch
-            const originalFetch = unsafeWindow.fetch;
-            unsafeWindow.fetch = function(...args) {
-                const url = args[0];
-                const options = args[1] || {};
-                
-                endpoints.add(JSON.stringify({
-                    url: url.toString(),
-                    method: options.method || 'GET',
-                    type: 'fetch'
-                }));
-                
-                return originalFetch.apply(this, args);
-            };
-
-            // Hook XMLHttpRequest
-            const originalOpen = unsafeWindow.XMLHttpRequest.prototype.open;
-            unsafeWindow.XMLHttpRequest.prototype.open = function(method, url) {
-                endpoints.add(JSON.stringify({
-                    url: url.toString(),
-                    method: method.toUpperCase(),
-                    type: 'xhr'
-                }));
-                
-                return originalOpen.apply(this, arguments);
-            };
-
-            // Wait for AJAX calls to be made
-            await this.delay(2000);
-
-            // Analyze discovered endpoints
-            for (const endpointStr of endpoints) {
-                const endpoint = JSON.parse(endpointStr);
-                ajaxData.push({
-                    ...endpoint,
-                    parameters: this.extractParameters(endpoint.url),
-                    vulnerability: {
-                        cors: await this.checkCORS(endpoint.url),
-                        jsonp: endpoint.url.includes('callback='),
-                        openRedirect: endpoint.url.match(/redirect|url|return|goto/i)
-                    }
-                });
-            }
-
-            return ajaxData;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🔌 WebSocket Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverWebSockets() {
-            const sockets = [];
-            
-            // Hook WebSocket constructor
-            const OriginalWebSocket = unsafeWindow.WebSocket;
-            unsafeWindow.WebSocket = function(url, protocols) {
-                sockets.push({
-                    url: url,
-                    protocols: protocols,
-                    origin: window.location.origin,
-                    vulnerability: {
-                        noOriginCheck: true,
-                        plaintext: url.startsWith('ws://'),
-                        injection: true // Test later
-                    },
-                    timestamp: new Date().toISOString()
-                });
-                
-                return new OriginalWebSocket(url, protocols);
-            };
-
-            await this.delay(1000);
-            return sockets;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 💬 PostMessage Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverPostMessage() {
-            const messages = [];
-            
-            // Listen for postMessage
-            window.addEventListener('message', (event) => {
-                messages.push({
-                    origin: event.origin,
-                    data: event.data,
-                    source: event.source?.location?.href,
-                    vulnerability: {
-                        noOriginCheck: true,
-                        dangerousData: typeof event.data === 'string' && 
-                                      event.data.match(/<script|javascript:|on\w+=/i)
-                    },
-                    timestamp: new Date().toISOString()
-                });
-            }, true);
-
-            // Check for postMessage senders
-            const scripts = Array.from(document.querySelectorAll('script'));
-            for (const script of scripts) {
-                if (script.textContent.includes('postMessage')) {
-                    messages.push({
-                        type: 'sender',
-                        element: this.getXPath(script),
-                        code: script.textContent.substring(0, 200)
-                    });
-                }
-            }
-
-            return messages;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🎯 DOM Sink Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverDOMSinks() {
-            const sinks = [];
-            const dangerousSinks = [
-                'innerHTML', 'outerHTML', 'insertAdjacentHTML',
-                'document.write', 'document.writeln',
-                'eval', 'Function', 'setTimeout', 'setInterval',
-                'location', 'location.href', 'location.assign',
-                'document.location', 'window.location',
-                'element.src', 'element.href', 'element.action',
-                'element.formAction', 'element.setAttribute'
-            ];
-
-            // Scan all scripts
-            const scripts = document.querySelectorAll('script');
-            for (const script of scripts) {
-                const code = script.textContent;
-                
-                for (const sink of dangerousSinks) {
-                    if (code.includes(sink)) {
-                        const context = this.extractSinkContext(code, sink);
-                        
-                        sinks.push({
-                            sink: sink,
-                            element: this.getXPath(script),
-                            context: context,
-                            controllable: this.checkControllable(context),
-                            vulnerability: {
-                                severity: this.getSinkSeverity(sink),
-                                exploitable: this.checkExploitable(sink, context)
-                            }
-                        });
-                    }
-                }
-            }
-
-            return sinks;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🔗 URL Parameter Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverURLParams() {
-            const params = [];
-            const url = new URL(window.location.href);
-
-            // Current URL params
-            for (const [key, value] of url.searchParams.entries()) {
-                params.push({
-                    name: key,
-                    value: value,
-                    reflected: this.checkReflectionInDOM(value),
-                    vulnerability: {
-                        reflected: this.checkReflectionInDOM(value),
-                        dangerousChars: /[<>"'`]/.test(value),
-                        executed: this.checkExecution(value)
-                    }
-                });
-            }
-
-            // Discover params from links
-            const links = document.querySelectorAll('a[href*="?"]');
-            for (const link of links) {
-                try {
-                    const linkUrl = new URL(link.href);
-                    for (const [key, value] of linkUrl.searchParams.entries()) {
-                        if (!params.find(p => p.name === key)) {
-                            params.push({
-                                name: key,
-                                value: value,
-                                source: 'link',
-                                href: link.href
-                            });
-                        }
-                    }
-                } catch (e) {}
-            }
-
-            return params;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 🍪 Cookie Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverCookies() {
-            const cookies = [];
-            const cookieString = document.cookie;
-
-            if (cookieString) {
-                const cookiePairs = cookieString.split(';');
-                
-                for (const pair of cookiePairs) {
-                    const [name, value] = pair.trim().split('=');
-                    
-                    cookies.push({
-                        name: name,
-                        value: decodeURIComponent(value || ''),
-                        vulnerability: {
-                            noHttpOnly: true, // Can be read by JS
-                            noSecure: window.location.protocol !== 'https:',
-                            noSameSite: true,
-                            injectable: /[<>"'`]/.test(value)
-                        }
-                    });
-                }
-            }
-
-            return cookies;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 💾 Storage Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverStorage() {
-            const storage = {
-                localStorage: [],
-                sessionStorage: []
-            };
-
-            // Local Storage
-            try {
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    const value = localStorage.getItem(key);
-                    
-                    storage.localStorage.push({
-                        key: key,
-                        value: value,
-                        vulnerability: {
-                            sensitive: this.isSensitiveData(key, value),
-                            injectable: /[<>"'`]/.test(value)
-                        }
-                    });
-                }
-            } catch (e) {}
-
-            // Session Storage
-            try {
-                for (let i = 0; i < sessionStorage.length; i++) {
-                    const key = sessionStorage.key(i);
-                    const value = sessionStorage.getItem(key);
-                    
-                    storage.sessionStorage.push({
-                        key: key,
-                        value: value,
-                        vulnerability: {
-                            sensitive: this.isSensitiveData(key, value),
-                            injectable: /[<>"'`]/.test(value)
-                        }
-                    });
-                }
-            } catch (e) {}
-
-            return storage;
-        }
-
-        // ───────────────────────────────────────────────────────────────
-        // 📋 Header Discovery
-        // ───────────────────────────────────────────────────────────────
-        async discoverHeaders() {
-            const headers = {};
-
-            try {
-                const response = await fetch(window.location.href, { method: 'HEAD' });
-                
-                response.headers.forEach((value, key) => {
-                    headers[key] = {
-                        value: value,
-                        vulnerability: this.analyzeHeader(key, value)
-                    };
-                });
-            } catch (e) {
-                console.error('Header discovery failed:', e);
-            }
-
-            return headers;
+            document.head.appendChild(style);
+            this.injected = true;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // 🛠️ Helper Methods
+        // 🎨 CSS Styles
         // ═══════════════════════════════════════════════════════════════
-        
-        getXPath(element) {
-            if (!element) return '';
-            if (element.id) return `//*[@id="${element.id}"]`;
-            
-            const paths = [];
-            for (; element && element.nodeType === 1; element = element.parentNode) {
-                let index = 0;
-                for (let sibling = element.previousSibling; sibling; sibling = sibling.previousSibling) {
-                    if (sibling.nodeType === Node.ELEMENT_NODE && sibling.nodeName === element.nodeName) {
-                        index++;
-                    }
+        getCSS() {
+            return `
+                /* Elite XSS Framework Styles */
+                #elite-xss-dashboard {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    width: 500px;
+                    max-height: 80vh;
+                    background: #1e1e1e;
+                    color: #e0e0e0;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                    border: 1px solid #333;
+                    z-index: 10000;
+                    overflow: hidden;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 }
-                const tagName = element.nodeName.toLowerCase();
-                const pathIndex = index ? `[${index + 1}]` : '';
-                paths.unshift(`${tagName}${pathIndex}`);
-            }
-            return paths.length ? `/${paths.join('/')}` : '';
-        }
 
-        getAttributes(element) {
-            const attrs = {};
-            for (const attr of element.attributes) {
-                attrs[attr.name] = attr.value;
-            }
-            return attrs;
-        }
-
-        getInputContext(input) {
-            const contexts = [];
-            
-            // Check if in form
-            if (input.form) contexts.push('form');
-            
-            // Check if hidden
-            if (input.type === 'hidden' || input.style.display === 'none') contexts.push('hidden');
-            
-            // Check if in iframe
-            if (window.self !== window.top) contexts.push('iframe');
-            
-            // Check parent elements
-            let parent = input.parentElement;
-            while (parent) {
-                if (parent.tagName === 'FORM') contexts.push('nested-form');
-                if (parent.hasAttribute('contenteditable')) contexts.push('editable-parent');
-                parent = parent.parentElement;
-            }
-            
-            return contexts;
-        }
-
-        checkReflection(input) {
-            const value = input.value;
-            if (!value) return false;
-            
-            const html = document.documentElement.innerHTML;
-            return html.includes(value);
-        }
-
-        checkReflectionInDOM(value) {
-            if (!value) return false;
-            const html = document.documentElement.innerHTML;
-            return html.includes(value);
-        }
-
-        checkExecution(value) {
-            // Check if value appears in executable context
-            const scripts = Array.from(document.querySelectorAll('script'));
-            return scripts.some(s => s.textContent.includes(value));
-        }
-
-        extractParameters(url) {
-            try {
-                const urlObj = new URL(url, window.location.origin);
-                const params = [];
-                
-                for (const [key, value] of urlObj.searchParams.entries()) {
-                    params.push({ key, value });
+                #elite-xss-dashboard.minimized {
+                    height: 60px;
                 }
-                
-                return params;
-            } catch {
-                return [];
+
+                .exss-panel {
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                /* Header */
+                .exss-header {
+                    background: linear-gradient(135deg, #2c3e50, #34495e);
+                    padding: 15px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #333;
+                }
+
+                .exss-header h1 {
+                    margin: 0;
+                    font-size: 18px;
+                    color: #4caf50;
+                    font-weight: 600;
+                }
+
+                .exss-actions {
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .exss-btn {
+                    background: rgba(255, 255, 255, 0.1);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    color: #e0e0e0;
+                    padding: 6px 10px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s ease;
+                }
+
+                .exss-btn:hover {
+                    background: rgba(255, 255, 255, 0.2);
+                }
+
+                .exss-btn-close:hover {
+                    background: #f44336;
+                }
+
+                .exss-btn-minimize:hover {
+                    background: #ff9800;
+                }
+
+                /* Tabs */
+                .exss-tabs {
+                    display: flex;
+                    background: #252525;
+                    border-bottom: 1px solid #333;
+                }
+
+                .exss-tab {
+                    flex: 1;
+                    padding: 12px;
+                    background: transparent;
+                    border: none;
+                    color: #aaa;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+
+                .exss-tab:hover {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #e0e0e0;
+                }
+
+                .exss-tab.active {
+                    background: #1e1e1e;
+                    color: #4caf50;
+                    border-bottom: 2px solid #4caf50;
+                }
+
+                /* Content */
+                .exss-content {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 20px;
+                }
+
+                .exss-tab-content {
+                    display: none;
+                }
+
+                .exss-tab-content.active {
+                    display: block;
+                }
+
+                /* Sections */
+                .exss-section {
+                    margin-bottom: 20px;
+                    padding: 15px;
+                    background: #2d2d2d;
+                    border-radius: 6px;
+                    border: 1px solid #3a3a3a;
+                }
+
+                .exss-section h3 {
+                    margin: 0 0 15px 0;
+                    color: #4caf50;
+                    font-size: 16px;
+                    font-weight: 500;
+                }
+
+                /* Form Elements */
+                .exss-form-group {
+                    margin-bottom: 15px;
+                }
+
+                .exss-form-group label {
+                    display: block;
+                    margin-bottom: 5px;
+                    font-weight: 500;
+                    color: #e0e0e0;
+                }
+
+                .exss-form-group input,
+                .exss-form-group select {
+                    width: 100%;
+                    padding: 10px;
+                    background: #333;
+                    border: 1px solid #444;
+                    border-radius: 4px;
+                    color: #e0e0e0;
+                    font-size: 14px;
+                }
+
+                .exss-form-group input:focus,
+                .exss-form-group select:focus {
+                    outline: none;
+                    border-color: #4caf50;
+                    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+                }
+
+                .exss-checkbox-group {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 10px;
+                }
+
+                .exss-checkbox-group label {
+                    display: flex;
+                    align-items: center;
+                    margin: 0;
+                    font-size: 13px;
+                    color: #ccc;
+                }
+
+                .exss-checkbox-group input {
+                    margin-right: 8px;
+                }
+
+                /* Actions */
+                .exss-actions-bar {
+                    display: flex;
+                    gap: 10px;
+                    margin-top: 20px;
+                }
+
+                .exss-btn-primary {
+                    background: #4caf50;
+                    color: #000;
+                    font-weight: 600;
+                }
+
+                .exss-btn-primary:hover {
+                    background: #45a049;
+                }
+
+                .exss-btn-secondary {
+                    background: #444;
+                    color: #e0e0e0;
+                }
+
+                .exss-btn-danger {
+                    background: #f44336;
+                    color: #fff;
+                }
+
+                .exss-btn-danger:hover {
+                    background: #da190b;
+                }
+
+                /* Progress */
+                .exss-progress {
+                    margin-top: 20px;
+                }
+
+                .exss-progress-bar {
+                    width: 100%;
+                    height: 8px;
+                    background: #333;
+                    border-radius: 4px;
+                    overflow: hidden;
+                }
+
+                .exss-progress-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #4caf50, #8bc34a);
+                    transition: width 0.3s ease;
+                }
+
+                .exss-progress-text {
+                    text-align: center;
+                    margin-top: 8px;
+                    font-size: 13px;
+                    color: #aaa;
+                }
+
+                /* Results */
+                .exss-results-filter {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 20px;
+                }
+
+                .exss-stat-card {
+                    background: #2d2d2d;
+                    padding: 15px;
+                    border-radius: 6px;
+                    text-align: center;
+                    margin-bottom: 15px;
+                    border: 1px solid #3a3a3a;
+                }
+
+                .exss-stat-value {
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: #4caf50;
+                    margin-bottom: 5px;
+                }
+
+                .exss-stat-label {
+                    font-size: 12px;
+                    color: #aaa;
+                }
+
+                .exss-stat-critical .exss-stat-value {
+                    color: #f44336;
+                }
+
+                .exss-stat-high .exss-stat-value {
+                    color: #ff9800;
+                }
+
+                .exss-stat-medium .exss-stat-value {
+                    color: #ffc107;
+                }
+
+                /* Payloads */
+                .exss-payload-search {
+                    display: flex;
+                    gap: 10px;
+                    margin-bottom: 20px;
+                }
+
+                .exss-payload-list {
+                    max-height: 300px;
+                    overflow-y: auto;
+                    background: #2d2d2d;
+                    border-radius: 6px;
+                    padding: 10px;
+                    margin-bottom: 15px;
+                }
+
+                .exss-payload-actions {
+                    display: flex;
+                    gap: 10px;
+                }
+
+                /* Footer */
+                .exss-footer {
+                    background: #252525;
+                    padding: 12px 20px;
+                    border-top: 1px solid #333;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-size: 13px;
+                }
+
+                .exss-status {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .exss-status-indicator {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #4caf50;
+                }
+
+                .exss-status-indicator.exss-status-error {
+                    background: #f44336;
+                }
+
+                .exss-status-indicator.exss-status-warning {
+                    background: #ff9800;
+                }
+
+                .exss-status-indicator.exss-status-scanning {
+                    background: #2196f3;
+                    animation: pulse 1.5s infinite;
+                }
+
+                @keyframes pulse {
+                    0% { opacity: 1; }
+                    50% { opacity: 0.5; }
+                    100% { opacity: 1; }
+                }
+
+                .exss-stats {
+                    display: flex;
+                    gap: 15px;
+                }
+
+                .exss-stats span {
+                    color: #aaa;
+                }
+
+                .exss-stats strong {
+                    color: #4caf50;
+                }
+
+                /* Utility Classes */
+                .hidden {
+                    display: none !important;
+                }
+            `;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🎨 Theme Management
+        // ═══════════════════════════════════════════════════════════════
+        toggleTheme(dark = true) {
+            const style = document.getElementById('elite-xss-styles');
+            if (style) {
+                style.textContent = this.getCSS();
             }
-        }
-
-        async checkCORS(url) {
-            try {
-                const response = await fetch(url, {
-                    method: 'OPTIONS',
-                    headers: { 'Origin': window.location.origin }
-                });
-                
-                const acao = response.headers.get('Access-Control-Allow-Origin');
-                return {
-                    enabled: !!acao,
-                    wildcard: acao === '*',
-                    credentialsAllowed: response.headers.get('Access-Control-Allow-Credentials') === 'true'
-                };
-            } catch {
-                return { enabled: false };
-            }
-        }
-
-        extractSinkContext(code, sink) {
-            const index = code.indexOf(sink);
-            const start = Math.max(0, index - 50);
-            const end = Math.min(code.length, index + sink.length + 50);
-            return code.substring(start, end);
-        }
-
-        checkControllable(context) {
-            const controllable = [
-                'location', 'document.URL', 'window.name',
-                'document.referrer', 'postMessage', 'localStorage',
-                'sessionStorage', 'cookie', 'URLSearchParams'
-            ];
-            
-            return controllable.some(c => context.includes(c));
-        }
-
-        getSinkSeverity(sink) {
-            const critical = ['eval', 'Function', 'innerHTML', 'outerHTML', 'document.write'];
-            const high = ['setTimeout', 'setInterval', 'insertAdjacentHTML'];
-            const medium = ['location.href', 'element.src', 'element.href'];
-            
-            if (critical.includes(sink)) return 'critical';
-            if (high.includes(sink)) return 'high';
-            if (medium.includes(sink)) return 'medium';
-            return 'low';
-        }
-
-        checkExploitable(sink, context) {
-            // Simple heuristic - check if user-controllable data flows to sink
-            return this.checkControllable(context);
-        }
-
-        isSensitiveData(key, value) {
-            const sensitivePatterns = /token|password|secret|key|auth|session|jwt|api/i;
-            return sensitivePatterns.test(key) || sensitivePatterns.test(value);
-        }
-
-        analyzeHeader(key, value) {
-            const vulnerabilities = {};
-            
-            if (key.toLowerCase() === 'x-frame-options') {
-                vulnerabilities.clickjacking = value === 'DENY' || value === 'SAMEORIGIN' ? false : true;
-            }
-            
-            if (key.toLowerCase() === 'content-security-policy') {
-                vulnerabilities.weakCSP = !value.includes('script-src') || value.includes('unsafe-inline');
-            }
-            
-            if (key.toLowerCase() === 'x-xss-protection') {
-                vulnerabilities.xssProtection = value === '0' || value === '1; mode=block' ? false : true;
-            }
-            
-            return vulnerabilities;
-        }
-
-        getSummary(results) {
-            return {
-                forms: results.forms.length,
-                inputs: results.inputs.length,
-                ajax: results.ajax.length,
-                websockets: results.websockets.length,
-                domSinks: results.domSinks.length,
-                urlParams: results.urlParams.length,
-                cookies: results.cookies.length,
-                storage: results.storage.localStorage.length + results.storage.sessionStorage.length
-            };
-        }
-
-        delay(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
         }
     }
 
     // Export
-    exports.EndpointDiscovery = EndpointDiscovery;
-    exports.create = (framework) => new EndpointDiscovery(framework);
+    exports.UIStyles = UIStyles;
+    exports.create = () => new UIStyles();
 })();

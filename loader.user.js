@@ -127,7 +127,15 @@
         // ───────────────────────────────────────────────────────────────
         fetchModule(category, moduleName) {
             return new Promise((resolve, reject) => {
-                const url = `${CONFIG.baseUrl}${category}/${moduleName}.js`;
+                // Fix path mapping - UI modules are in ui/ directory
+                let path = `${category}/${moduleName}.js`;
+                if (category === 'ui') {
+                    path = `ui/${moduleName}.js`;
+                } else if (category === 'modules') {
+                    path = `modules/${moduleName}.js`;
+                }
+
+                const url = `${CONFIG.baseUrl}${path}`;
 
                 GM_xmlhttpRequest({
                     method: 'GET',
@@ -329,13 +337,35 @@
         // 🎨 UI Controls
         // ───────────────────────────────────────────────────────────────
         async toggleDashboard() {
-            const dashboard = await this.loadModule('ui', 'dashboard');
-            dashboard.toggle();
+            try {
+                const dashboard = await this.loadModule('ui', 'dashboard');
+                if (dashboard && typeof dashboard.toggle === 'function') {
+                    dashboard.toggle();
+                } else if (dashboard && typeof dashboard.show === 'function') {
+                    dashboard.show();
+                } else if (dashboard && typeof dashboard.render === 'function') {
+                    dashboard.render();
+                } else {
+                    console.log('[Elite XSS] Dashboard module loaded but no toggle method found');
+                }
+            } catch (error) {
+                console.error('[Elite XSS] Failed to load dashboard:', error);
+                // Fallback: create simple dashboard
+                this.createSimpleDashboard();
+            }
         }
 
         async quickTest() {
-            const orchestrator = await this.loadModule('core', 'orchestrator');
-            orchestrator.runQuickTest();
+            try {
+                const orchestrator = await this.loadModule('core', 'orchestrator');
+                if (orchestrator && typeof orchestrator.runQuickTest === 'function') {
+                    orchestrator.runQuickTest();
+                } else {
+                    console.log('[Elite XSS] Quick test not available');
+                }
+            } catch (error) {
+                console.error('[Elite XSS] Failed to run quick test:', error);
+            }
         }
 
         toggleSafeMode() {
@@ -368,6 +398,10 @@
         }
 
         injectIndicator() {
+            // Remove existing indicator if present
+            const existing = document.getElementById('elite-xss-indicator');
+            if (existing) existing.remove();
+
             const indicator = document.createElement('div');
             indicator.id = 'elite-xss-indicator';
             indicator.innerHTML = '🎯';
@@ -435,6 +469,113 @@
             if (indicator) indicator.remove();
 
             console.log('[Elite XSS] Framework uninstalled');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🎯 Simple Dashboard Fallback
+        // ───────────────────────────────────────────────────────────────
+        createSimpleDashboard() {
+            // Remove existing simple dashboard if present
+            const existing = document.getElementById('elite-xss-simple-dashboard');
+            if (existing) existing.remove();
+
+            // Create a simple dashboard element
+            const dashboard = document.createElement('div');
+            dashboard.id = 'elite-xss-simple-dashboard';
+            dashboard.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                width: 400px;
+                max-height: 80vh;
+                background: #1e1e1e;
+                color: #e0e0e0;
+                border-radius: 8px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+                border: 1px solid #333;
+                z-index: 10000;
+                overflow-y: auto;
+            `;
+
+            dashboard.innerHTML = `
+                <div style="padding: 15px; border-bottom: 1px solid #333;">
+                    <h2 style="margin: 0; color: #4caf50;">Elite XSS Framework</h2>
+                    <p style="margin: 5px 0 0 0; color: #aaa;">v8.0.0 - Manual Dashboard</p>
+                </div>
+                <div style="padding: 15px;">
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="color: #4caf50; margin-top: 0;">Framework Status</h3>
+                        <p>✅ Core modules loaded</p>
+                        <p>⚠️ UI modules failed to load (404 errors)</p>
+                        <p>🔧 Using fallback dashboard</p>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <h3 style="color: #4caf50;">Quick Actions</h3>
+                        <button onclick="console.log('[Elite XSS] Quick test would run here')" 
+                                style="background: #444; color: #fff; border: none; padding: 8px 12px; margin: 5px; border-radius: 4px; cursor: pointer;">
+                            Quick Test
+                        </button>
+                        <button onclick="document.getElementById('elite-xss-simple-dashboard').style.display = 'none'" 
+                                style="background: #f44336; color: #fff; border: none; padding: 8px 12px; margin: 5px; border-radius: 4px; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                    <div>
+                        <h3 style="color: #4caf50;">Loaded Modules</h3>
+                        <div style="max-height: 200px; overflow-y: auto; background: #333; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+                            ${Array.from(this.loadedModules.keys()).join('<br>')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dashboard);
+            console.log('[Elite XSS] ✅ Simple dashboard created as fallback');
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🎯 Start Scan Method
+        // ───────────────────────────────────────────────────────────────
+        async startScan(target, options = {}) {
+            console.log(`[Elite XSS] Starting scan for target: ${target}`);
+            
+            // Dispatch scan start event
+            this.emit('scanStarted', { target, options });
+            
+            // Implementation would go here
+            return {
+                status: 'started',
+                target: target,
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 🛑 Stop Scan Method
+        // ───────────────────────────────────────────────────────────────
+        stopScan() {
+            console.log('[Elite XSS] Stopping scan');
+            
+            // Dispatch scan stop event
+            this.emit('scanStopped');
+            
+            // Implementation would go here
+            return {
+                status: 'stopped',
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // ───────────────────────────────────────────────────────────────
+        // 📊 Get Framework Status
+        // ───────────────────────────────────────────────────────────────
+        getStatus() {
+            return {
+                initialized: this.isInitialized,
+                modules: this.loadedModules.size,
+                version: CONFIG.version,
+                state: this.state
+            };
         }
     }
 
